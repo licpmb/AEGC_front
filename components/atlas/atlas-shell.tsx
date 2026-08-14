@@ -114,6 +114,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
       <div className="flex min-h-0 flex-1">
         {view === 'mapa' && <AtlasMap />}
         {view === 'documentacion' && <DocCoverage />}
+        {view === 'importar' && <ImportReconcile />}
         {view === 'datos' && <DataEntry />}
         {view === 'roles' && <RolesAdmin />}
       </div>
