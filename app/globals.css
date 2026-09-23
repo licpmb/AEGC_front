@@ -121,9 +121,9 @@
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--primary);
-  --archi-canvas: #f8fafc;
-  --archi-group: #e2edf5;
-  --archi-line: #344b63;
+  --archi-canvas: #ffffff;
+  --archi-group: #eef3f7;
+  --archi-line: #334155;
   --archi-flow: #006b9b;
 }
 
@@ -186,4 +186,21 @@
 .edge-animated {
   stroke-dasharray: 4 6;
   animation: dash-flow 0.9s linear infinite;
+}
+
+
+/* Theme contrast guardrails: icons and native controls must follow semantic foreground. */
+[data-slot='button'] svg,
+button svg {
+  color: currentColor;
+}
+.light input,
+.light select,
+.light textarea {
+  color: var(--foreground);
+  background-color: var(--background);
+}
+.light .react-flow__controls-button {
+  color: var(--foreground) !important;
+  background: var(--card) !important;
 }
