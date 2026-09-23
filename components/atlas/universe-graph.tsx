@@ -23,7 +23,7 @@ export function UniverseGraph({ model, universe, onAsset }: { model: NativeModel
         if (seen.has(key)) continue
         seen.add(key)
         edges.push({ id: key, source, target, label: relationship.type.replace('Relationship', ''),
-          markerEnd: { type: MarkerType.ArrowClosed }, style: { stroke: '#67b8dc', strokeWidth: 1.5 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--archi-flow)' }, style: { stroke: 'var(--archi-flow)', strokeWidth: 2.2 },
           labelStyle: { fill: 'var(--foreground)', fontSize: 10 }, labelBgStyle: { fill: 'var(--card)' } })
       }
     }
