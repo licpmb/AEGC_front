@@ -5,6 +5,8 @@ export interface NativeElement {
   type: string
   documentation?: string
   properties: Record<string, string>
+  accessType?: string
+  directed?: boolean
 }
 
 export interface NativeRelationship {
@@ -33,6 +35,7 @@ export interface DiagramObject {
   font?: string
   textAlignment?: string
   textPosition?: string
+  figureType?: string
   hasChildren?: boolean
 }
 
@@ -139,7 +142,9 @@ export function parseNativeArchi(source: string): NativeModel {
     if (type.endsWith('Relationship')) {
       relationships.set(id, { id, name: el.getAttribute('name') ?? '', type,
         source: el.getAttribute('source') ?? '', target: el.getAttribute('target') ?? '',
-        documentation: children(el, 'documentation')[0]?.textContent?.trim(), properties: propertiesOf(el) })
+        documentation: children(el, 'documentation')[0]?.textContent?.trim(), properties: propertiesOf(el),
+        accessType: el.getAttribute('accessType') ?? undefined,
+        directed: el.getAttribute('directed') === 'true' || el.getAttribute('directed') === '1' })
       continue
     }
     if (type === 'ArchimateDiagramModel' || type === 'CanvasModel' || type === 'SketchModel') continue
@@ -181,6 +186,7 @@ export function parseNativeArchi(source: string): NativeModel {
           font: child.getAttribute('font') ?? undefined,
           textAlignment: child.getAttribute('textAlignment') ?? undefined,
           textPosition: child.getAttribute('textPosition') ?? undefined,
+          figureType: child.getAttribute('type') ?? undefined,
           hasChildren: children(child, 'child').length > 0 })
         for (const line of children(child, 'sourceConnection')) {
           const connectionId = line.getAttribute('id')
