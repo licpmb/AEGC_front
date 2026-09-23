@@ -156,32 +156,72 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const stroke = selectedObject ? '#f59e0b' : (o.lineColor || (group ? 'var(--archi-line)' : '#536c84'))
     const background = o.fillColor || (group ? 'var(--archi-group)' : fill(o.type))
     const textColor = o.fontColor || (group ? 'var(--foreground)' : '#1b3145')
-    const rounded = /Service|Process|Function|Interaction/i.test(o.type) ? Math.min(22, o.height / 2) : group ? 1 : 3
+    const alt = o.figureType === '1'
     const alignCode = o.textAlignment ?? '2'
     const align = alignCode === '1' ? 'start' : alignCode === '4' ? 'end' : 'middle'
-    const textX = align === 'middle' ? o.x + o.width / 2 : align === 'end' ? o.x + o.width - 7 : o.x + 7
-    const lines = truncated(o.label, o.width - 14)
+    const textInset = alt && /ApplicationComponent/i.test(o.type) ? 18 : 7
+    const textX = align === 'middle' ? o.x + o.width / 2 : align === 'end' ? o.x + o.width - textInset : o.x + textInset
+    const lines = truncated(o.label, o.width - textInset * 2)
     const positionCode = o.textPosition ?? '1'
     const baseY = positionCode === '2' ? o.y + o.height - 8 - (lines.length - 1) * 14 :
       positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * 14) / 2 + 4 : o.y + 18
-    const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1.2 }
+    const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1 }
     const isNote = /^Note$/i.test(o.type)
-    const isData = /DataObject|Artifact/i.test(o.type)
-    const isNode = /^Node$|Device/i.test(o.type)
+    const isArtifact = /Artifact/i.test(o.type)
+    const isData = /DataObject/i.test(o.type)
+    const isNode = /^Node$/i.test(o.type)
+    const isDevice = /Device/i.test(o.type)
+    const isService = /Service/i.test(o.type)
+    const isEvent = /Event/i.test(o.type)
+    const isComponent = /ApplicationComponent/i.test(o.type)
+
     return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => { setSelected(o); setSelectedConnectionId(null) }} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o); setSelectedConnectionId(null) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
       <title>{`${o.label} · ${o.type}${o.elementId ? ` · ${o.elementId}` : ''} · figura ${o.id}`}</title>
-      {isNote ? <rect x={o.x} y={o.y} width={o.width} height={o.height} rx="1" fill={o.fillColor || 'var(--background)'} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/> : isData && !group ? <>
-        <path d={`M ${o.x} ${o.y} H ${o.x + o.width - 13} L ${o.x + o.width} ${o.y + 13} V ${o.y + o.height} H ${o.x} Z`} {...common}/>
-        <path d={`M ${o.x + o.width - 13} ${o.y} V ${o.y + 13} H ${o.x + o.width}`} fill="none" stroke={stroke} strokeWidth={1.2}/>
-      </> : isNode && !group ? <>
-        <rect x={o.x} y={o.y + 6} width={Math.max(1, o.width - 8)} height={Math.max(1, o.height - 6)} rx={rounded} {...common}/>
-        <path d={`M ${o.x} ${o.y + 6} L ${o.x + 8} ${o.y} H ${o.x + o.width} V ${o.y + o.height - 6} L ${o.x + o.width - 8} ${o.y + o.height}`} fill="none" stroke={stroke} strokeWidth={1.2}/>
-      </> : <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={rounded} {...common} fillOpacity={group && !o.fillColor ? .55 : 1}/>}
-      {/ApplicationComponent/i.test(o.type) && !group && <>
-        <rect x={o.x + o.width - 20} y={o.y + 7} width="11" height="8" fill="none" stroke={stroke} strokeWidth="1"/>
-        <path d={`M ${o.x + o.width - 23} ${o.y + 9} h5 M ${o.x + o.width - 23} ${o.y + 13} h5`} stroke={stroke} strokeWidth="1"/>
+
+      {isNote ? <rect x={o.x} y={o.y} width={o.width} height={o.height} fill={o.fillColor || 'var(--background)'} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/>
+      : isComponent && alt ? <>
+          <path d={`M ${o.x + 10} ${o.y} H ${o.x + o.width} V ${o.y + o.height} H ${o.x + 10} V ${o.y + 43} M ${o.x + 10} ${o.y + 30} V ${o.y + 23} M ${o.x + 10} ${o.y + 10} V ${o.y}`} {...common}/>
+          <rect x={o.x} y={o.y + 10} width="20" height="13" {...common}/>
+          <rect x={o.x} y={o.y + 30} width="20" height="13" {...common}/>
+        </>
+      : isEvent && alt ? (() => {
+          const indent = Math.min(o.height / 3, o.width / 3)
+          const cy = o.y + o.height / 2
+          const right = o.x + o.width - indent
+          return <path d={`M ${o.x} ${o.y} L ${o.x + indent} ${cy} L ${o.x} ${o.y + o.height} H ${right} A ${indent} ${o.height / 2} 0 0 0 ${right} ${o.y} Z`} {...common}/>
+        })()
+      : isService ? <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={alt ? Math.min(o.height / 2, o.width * .4) : Math.min(12, o.height / 3)} ry={alt ? o.height / 2 : Math.min(12, o.height / 3)} {...common}/>
+      : isArtifact && alt ? <>
+          <path d={`M ${o.x} ${o.y} H ${o.x + o.width - 18} L ${o.x + o.width} ${o.y + 18} V ${o.y + o.height} H ${o.x} Z`} {...common}/>
+          <path d={`M ${o.x + o.width - 18} ${o.y} V ${o.y + 18} H ${o.x + o.width}`} fill="none" stroke={stroke} strokeWidth="1"/>
+        </>
+      : isData ? <>
+          <rect x={o.x} y={o.y} width={o.width} height={o.height} {...common}/>
+          {alt && <path d={`M ${o.x} ${o.y + 12} H ${o.x + o.width}`} fill="none" stroke={stroke} strokeWidth="1"/>}
+        </>
+      : isDevice && alt ? <>
+          <rect x={o.x} y={o.y} width={o.width} height={Math.max(1, o.height * .8)} rx="14" {...common}/>
+          <path d={`M ${o.x + 1} ${o.y + o.height} L ${o.x + 15} ${o.y + o.height * .8} H ${o.x + o.width - 15} L ${o.x + o.width - 1} ${o.y + o.height} Z`} {...common}/>
+        </>
+      : isNode && alt ? <>
+          <rect x={o.x} y={o.y + 5} width={Math.max(1, o.width - 7)} height={Math.max(1, o.height - 5)} {...common}/>
+          <path d={`M ${o.x} ${o.y + 5} L ${o.x + 7} ${o.y} H ${o.x + o.width} V ${o.y + o.height - 5} L ${o.x + o.width - 7} ${o.y + o.height} M ${o.x + o.width - 7} ${o.y + 5} L ${o.x + o.width} ${o.y}`} fill="none" stroke={stroke} strokeWidth="1"/>
+        </>
+      : <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 0 : 1} {...common} fillOpacity={group && !o.fillColor ? .35 : 1}/>}
+
+      {isComponent && !alt && !group && <>
+        <rect x={o.x + o.width - 14} y={o.y + 7} width="10" height="13" fill="none" stroke={stroke} strokeWidth="1"/>
+        <rect x={o.x + o.width - 17} y={o.y + 9} width="6" height="2.5" fill={background} stroke={stroke} strokeWidth="1"/>
+        <rect x={o.x + o.width - 17} y={o.y + 14} width="6" height="2.5" fill={background} stroke={stroke} strokeWidth="1"/>
       </>}
-      {/Interface/i.test(o.type) && !group && <circle cx={o.x + o.width - 12} cy={o.y + 12} r="5" fill="none" stroke={stroke} strokeWidth="1.2"/>}
+      {/Interface/i.test(o.type) && !group && <circle cx={o.x + o.width - 12} cy={o.y + 12} r="5" fill="none" stroke={stroke} strokeWidth="1"/>}
+      {isData && !alt && !group && <>
+        <rect x={o.x + o.width - 17} y={o.y + 6} width="13" height="10" fill="none" stroke={stroke} strokeWidth="1"/>
+        <path d={`M ${o.x + o.width - 17} ${o.y + 9} H ${o.x + o.width - 4}`} stroke={stroke} strokeWidth="1"/>
+      </>}
+      {isArtifact && !alt && !group && <>
+        <path d={`M ${o.x + o.width - 16} ${o.y + 6} H ${o.x + o.width - 9} L ${o.x + o.width - 4} ${o.y + 11} V ${o.y + 21} H ${o.x + o.width - 16} Z M ${o.x + o.width - 9} ${o.y + 6} V ${o.y + 11} H ${o.x + o.width - 4}`} fill="none" stroke={stroke} strokeWidth="1"/>
+      </>}
       {o.label && lines.map((line, index) => <text key={index} x={textX} y={baseY + index * 14} fontSize="11" fontWeight={index ? 400 : 600} textAnchor={align} fill={textColor}>{line}</text>)}
     </g>
   }
@@ -261,13 +301,13 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
         }}/></div> : <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
             <defs>
-              <marker id="native-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto-start-reverse"><path d="M0 0 8 4.5 0 9 Z" fill="context-stroke"/></marker>
-              <marker id="native-open-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="context-stroke" strokeWidth="1.2"/></marker>
-              <marker id="native-triangle" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto-start-reverse"><path d="M1 1 L10 5.5 L1 10 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1.2"/></marker>
-              <marker id="native-diamond" markerWidth="12" markerHeight="12" refX="1" refY="6" orient="auto-start-reverse"><path d="M1 6 L6 1 L11 6 L6 11 Z" fill="context-stroke" stroke="context-stroke"/></marker>
-              <marker id="native-open-diamond" markerWidth="12" markerHeight="12" refX="1" refY="6" orient="auto-start-reverse"><path d="M1 6 L6 1 L11 6 L6 11 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1.2"/></marker>
-              <marker id="native-ball" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><circle cx="4.5" cy="4.5" r="3" fill="context-stroke"/></marker>
-              <marker id="native-half-arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M1 4 L9 0" fill="none" stroke="context-stroke" strokeWidth="1.2"/></marker>
+              <marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 7 4 0 8 Z" fill="context-stroke"/></marker>
+              <marker id="native-open-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L7 4 L0 8" fill="none" stroke="context-stroke" strokeWidth="1"/></marker>
+              <marker id="native-triangle" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto-start-reverse"><path d="M0 0 L9 4 L0 8 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1"/></marker>
+              <marker id="native-diamond" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto-start-reverse"><path d="M1 3.5 L5 0.5 L9 3.5 L5 6.5 Z" fill="context-stroke" stroke="context-stroke"/></marker>
+              <marker id="native-open-diamond" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto-start-reverse"><path d="M1 3.5 L5 0.5 L9 3.5 L5 6.5 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1"/></marker>
+              <marker id="native-ball" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto"><circle cx="3.5" cy="3.5" r="2.5" fill="context-stroke"/></marker>
+              <marker id="native-half-arrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0 3.5 L8 0" fill="none" stroke="context-stroke" strokeWidth="1"/></marker>
             </defs>
             {objects.filter((o) => containerIds.has(o.id)).map(renderFigure)}
             {connections.map((c) => { const points = routeFor(c.id); if (!points.length) return null
@@ -279,7 +319,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
               const stroke = connected ? '#f59e0b' : baseStroke
               const access = rel?.accessType ?? '0'
               const dash = /FlowRelationship/i.test(type) ? '6 3' :
-                /RealizationRelationship|AccessRelationship|InfluenceRelationship/i.test(type) ? '2 3' : undefined
+                /RealizationRelationship|AccessRelationship|InfluenceRelationship/i.test(type) ? '2 2' : undefined
               let markerStart: string | undefined
               let markerEnd: string | undefined
               if (/CompositionRelationship/i.test(type)) markerStart = 'url(#native-diamond)'
@@ -292,12 +332,14 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
                 if (access === '1' || access === '3') markerStart = 'url(#native-open-arrow)'
                 if (access === '0' || access === '3' || access === undefined) markerEnd = 'url(#native-open-arrow)'
               } else if (/AssociationRelationship/i.test(type) && rel?.directed) markerEnd = 'url(#native-half-arrow)'
-              const middle = points[Math.floor(points.length / 2)]
+              const labelPoint = c.textPosition === '0' ? points[Math.min(1, points.length - 1)] :
+                c.textPosition === '2' ? points[Math.max(0, points.length - 2)] :
+                points[Math.floor(points.length / 2)]
               return <g key={c.id}>
                 <title>{`${rel?.name || type} · ${c.id}`}</title>
-                <path d={path} fill="none" stroke={stroke} strokeWidth={connected ? Math.max(3.4, (c.lineWidth ?? 1) + 2) : Math.max(1.2, (c.lineWidth ?? 1) * 1.4)}
-                  strokeDasharray={dash} strokeLinejoin="round" strokeLinecap="round" markerStart={markerStart} markerEnd={markerEnd}/>
-                {rel?.name && middle && <text x={middle.x + 5} y={middle.y - 5} fontSize="10" fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text>}
+                <path d={path} fill="none" stroke={stroke} strokeWidth={connected ? Math.max(3, (c.lineWidth ?? 1) + 2) : (c.lineWidth ?? 1)}
+                  strokeDasharray={dash} strokeLinejoin="miter" strokeLinecap="butt" markerStart={markerStart} markerEnd={markerEnd}/>
+                {rel?.name && labelPoint && <text x={labelPoint.x + 4} y={labelPoint.y - 4} fontSize="10" fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text>}
                 <path d={path} fill="none" stroke="transparent" strokeWidth="14" style={{ cursor: 'pointer' }} onClick={() => { setSelectedConnectionId(c.id); setSelected(null) }}/>
               </g> })}
             {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
