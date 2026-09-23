@@ -5,8 +5,6 @@ export interface NativeElement {
   type: string
   documentation?: string
   properties: Record<string, string>
-  accessType?: string
-  directed?: boolean
 }
 
 export interface NativeRelationship {
@@ -17,6 +15,8 @@ export interface NativeRelationship {
   target: string
   documentation?: string
   properties: Record<string, string>
+  accessType?: string
+  directed?: boolean
 }
 
 export interface DiagramObject {
@@ -71,25 +71,32 @@ export interface NativeModel {
   views: NativeView[]
 }
 
-/** Archi stores each bend relative to both endpoint centers. The authored
- *  source offset preserves the route when old target offsets have drifted. */
+/** Reproduce Draw2D RelativeBendpoint exactly.
+ * Archi stores two offsets for every bendpoint and a weight based on its
+ * position in the route. The absolute point is the weighted interpolation
+ * of the source-relative and target-relative coordinates. */
 export function connectionPoints(connection: DiagramConnection, source: DiagramObject, target: DiagramObject) {
   const sx = source.x + source.width / 2, sy = source.y + source.height / 2
   const tx = target.x + target.width / 2, ty = target.y + target.height / 2
-  const bends = connection.bendpoints.map((p) => {
-    const from = { x: sx + p.startX, y: sy + p.startY }
-    const to = { x: tx + p.endX, y: ty + p.endY }
-    return Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y)) > 3 ? from :
-      { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+  const count = connection.bendpoints.length
+  const bends = connection.bendpoints.map((p, index) => {
+    const weight = (index + 1) / (count + 1)
+    const startX = sx + p.startX, startY = sy + p.startY
+    const endX = tx + p.endX, endY = ty + p.endY
+    return {
+      x: startX * (1 - weight) + endX * weight,
+      y: startY * (1 - weight) + endY * weight,
+    }
   })
   const onBorder = (o: DiagramObject, point: { x: number; y: number }) => {
     const cx = o.x + o.width / 2, cy = o.y + o.height / 2
     const dx = point.x - cx, dy = point.y - cy
-    const factor = Math.max(Math.abs(dx) / (o.width / 2), Math.abs(dy) / (o.height / 2), 1e-6)
+    const factor = Math.max(Math.abs(dx) / Math.max(o.width / 2, 1), Math.abs(dy) / Math.max(o.height / 2, 1), 1e-6)
     return { x: cx + dx / factor, y: cy + dy / factor }
   }
-  return [onBorder(source, bends[0] ?? { x: tx, y: ty }), ...bends,
-    onBorder(target, bends.at(-1) ?? { x: sx, y: sy })]
+  const firstGuide = bends[0] ?? { x: tx, y: ty }
+  const lastGuide = bends.at(-1) ?? { x: sx, y: sy }
+  return [onBorder(source, firstGuide), ...bends, onBorder(target, lastGuide)]
 }
 
 function children(parent: Element, name: string): Element[] {
