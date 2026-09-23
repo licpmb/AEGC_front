@@ -69,6 +69,9 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       y: drag?.id === o.id ? drag.y : edit?.kind === 'moveFigure' ? edit.y : o.y }
   }) ?? [], [view, edits, viewId, drag])
   const byId = useMemo(() => new Map(objects.map((obj) => [obj.id, obj])), [objects])
+  const containerIds = useMemo(() => new Set(objects.filter((o) => /Group/i.test(o.type) || objects.some((child) =>
+    child.id !== o.id && child.depth > o.depth && child.x >= o.x && child.y >= o.y &&
+    child.x + child.width <= o.x + o.width && child.y + child.height <= o.y + o.height)).map((o) => o.id)), [objects])
   const matches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
     return q ? objects.filter((o) => `${o.label} ${o.type}`.toLocaleLowerCase().includes(q)) : []
@@ -107,7 +110,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   }
 
   function startMove(event: PointerEvent<SVGGElement>, o: DiagramObject) {
-    if (event.button !== 0 || !viewId || mode !== 'archi' || /Group/i.test(o.type)) return
+    if (event.button !== 0 || !viewId || mode !== 'archi' || containerIds.has(o.id)) return
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
     const next = { id: o.id, startX: event.clientX, startY: event.clientY, originX: o.x, originY: o.y, x: o.x, y: o.y }
     dragRef.current = next; setDrag(next); setSelected(o)
@@ -128,6 +131,15 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
         { kind: 'moveFigure', viewId, objectId: current.id, x: current.x, y: current.y }])
     dragRef.current = null; setDrag(null)
   }
+  function renderFigure(o: DiagramObject) {
+    const group = containerIds.has(o.id)
+    const selectedObject = selected?.id === o.id
+    const faded = !!query && !`${o.label} ${o.type}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+    return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => setSelected(o)} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
+      <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 3 : 5} fill={group ? 'var(--archi-group)' : fill(o.type)} fillOpacity={group ? .55 : 1} stroke={selectedObject ? '#f59e0b' : '#536c84'} strokeWidth={selectedObject ? 3 : 1.2}/>
+      {o.label && truncated(o.label, o.width).map((line, index) => <text key={index} x={o.x + 7} y={o.y + 18 + index * 14} fontSize="11" fontWeight={index ? 400 : 600} fill={group ? 'var(--foreground)' : '#1b3145'}>{line}</text>)}
+    </g>
+  }
 
   return <div className={`relative flex h-full min-h-0 w-full flex-col bg-background ${fileHover ? 'ring-2 ring-inset ring-sky-500' : ''}`}
     onDragEnter={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setFileHover(true) } }}
@@ -145,12 +157,15 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       </label>
     </div>
     {error && <div role="alert" className="flex items-center gap-2 border-b border-destructive/40 px-5 py-2 text-[12px] text-destructive"><AlertTriangle size={14}/>{error}</div>}
-    {!model ? <div className="grid flex-1 place-items-center p-8 text-center"><div className="max-w-lg">
-      <FileUp className="mx-auto mb-4 text-muted-foreground" size={32}/><h3 className="text-lg font-semibold">Abrí tu modelo empresarial</h3>
-      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">Elegí o arrastrá <code>cepasgeneral.archimate</code>. Se abrirá la vista KETAN con sus bases locales, líneas, jobs, procedimientos, Gateway, CPI y SAP. También podrás explorar las demás vistas y ver dónde se reutiliza un mismo elemento.</p>
-      <p className="mt-3 text-[12px] text-muted-foreground">El archivo se procesa en el navegador. Podés mover figuras y descargar los cambios como propuesta .archimate.</p>
-      {loading && <p className="mt-3">Leyendo modelo…</p>}
-    </div></div> : <div className="flex min-h-0 flex-1">
+    {!model ? <label className={`m-5 grid flex-1 cursor-pointer place-items-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${fileHover ? 'border-sky-400 bg-sky-500/10' : 'border-border bg-card/20 hover:border-sky-500 hover:bg-card/40'}`}>
+      <div className="max-w-lg">
+        <FileUp className="mx-auto mb-4 text-sky-400" size={42}/><h3 className="text-lg font-semibold">Arrastrá y soltá tu .archimate acá</h3>
+        <p className="mt-2 text-[13px] text-muted-foreground">O hacé clic en cualquier parte de esta zona para elegir el archivo.</p>
+        <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">Se abrirá la vista KETAN con sus bases locales, líneas, jobs, Gateway, CPI y SAP. El archivo se procesa en este navegador.</p>
+        {loading && <p role="status" className="mt-3">Leyendo modelo…</p>}
+      </div>
+      <input type="file" accept=".archimate,.xml" className="sr-only" onChange={(e) => { void load(e.target.files?.[0]); e.target.value = '' }} />
+    </label> : <div className="flex min-h-0 flex-1">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar">
         <div className="space-y-2 border-b border-border p-3"><p className="truncate text-[12px] font-semibold" title={model.name}>{model.name}</p><p className="text-[11px] text-muted-foreground">{model.views.length} vistas · {model.elements.size} elementos · {model.relationships.size} relaciones</p>
           <Input value={viewQuery} onChange={(e) => setViewQuery(e.target.value)} placeholder="Buscar vista" aria-label="Buscar vista" className="h-8 text-xs" /></div>
@@ -175,9 +190,10 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
           const asset = universe.assets.find((a) => a.id === id)
           const match = model.views.flatMap((v) => v.objects.map((o) => ({ v, o }))).find(({ o }) => asset?.archiIds.includes(o.elementId ?? ''))
           if (match) { setViewId(match.v.id); setSelected(match.o); setMode('archi') }
-        }}/></div> : <div className="min-h-0 flex-1 overflow-auto bg-[radial-gradient(var(--border)_0.6px,transparent_0.6px)] bg-[length:20px_20px]">
+        }}/></div> : <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
-            <defs><marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="#7d97ad"/></marker></defs>
+            <defs><marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="var(--archi-line)"/></marker></defs>
+            {objects.filter((o) => containerIds.has(o.id)).map(renderFigure)}
             {view.connections.map((c) => { const from = byId.get(c.source); const to = byId.get(c.target); if (!from || !to) return null
               const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
               const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
@@ -185,13 +201,10 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
               const path = [start, ...bends, end].map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ')
               const rel = c.relationId ? model.relationships.get(c.relationId) : undefined
               const type = rel?.type ?? c.type
-              return <path key={c.id} d={path} fill="none" stroke={type === 'FlowRelationship' ? '#4baad8' : '#7d97ad'} strokeWidth="1.6"
-                strokeDasharray={type === 'AssociationRelationship' ? '5 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'} opacity=".8"/> })}
-            {objects.map((o) => { const group = /Group/i.test(o.type); const selectedObject = selected?.id === o.id; const faded = !!query && !`${o.label} ${o.type}`.toLocaleLowerCase().includes(query.toLocaleLowerCase());
-              return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => setSelected(o)} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
-                <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 3 : 5} fill={group ? '#253c50' : fill(o.type)} fillOpacity={group ? .45 : 1} stroke={selectedObject ? '#f59e0b' : '#536c84'} strokeWidth={selectedObject ? 3 : 1.2}/>
-                {o.label && truncated(o.label, o.width).map((line, index) => <text key={index} x={o.x + 7} y={o.y + 18 + index * 14} fontSize="11" fontWeight={index ? 400 : 600} fill={group ? '#e2e9f3' : '#1b3145'}>{line}</text>)}
-              </g> })}
+              const connected = !!selected && (selected.id === c.source || selected.id === c.target)
+              return <path key={c.id} d={path} fill="none" stroke={connected ? '#f59e0b' : type === 'FlowRelationship' ? 'var(--archi-flow)' : 'var(--archi-line)'} strokeWidth={connected ? 3.4 : 2.2}
+                strokeDasharray={type === 'AssociationRelationship' ? '6 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'}/> })}
+            {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
           </svg>}
         </div>}
       </section>
