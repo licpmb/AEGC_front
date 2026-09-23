@@ -10,6 +10,8 @@ import {
   FileText,
   DownloadCloud,
   Network,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { AtlasMap } from './atlas-map'
 import { DataEntry } from './data-entry'
@@ -36,6 +38,22 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<(typeof VIEWS)[number]['key']>('mapa')
   const [native, setNative] = useState<{ model: NativeModel; xml: string } | null>(null)
   const [showDemoMap, setShowDemoMap] = useState(false)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('aegc:theme') === 'light' ? 'light' : 'dark'
+      setTheme(saved)
+      document.documentElement.classList.toggle('light', saved === 'light')
+      document.documentElement.classList.toggle('dark', saved === 'dark')
+    } catch { /* Storage may be disabled; dark remains available. */ }
+  }, [])
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    document.documentElement.classList.toggle('light', next === 'light')
+    document.documentElement.classList.toggle('dark', next === 'dark')
+    try { localStorage.setItem('aegc:theme', next) } catch { /* Still switch for this session. */ }
+  }
   useEffect(() => {
     const request = indexedDB.open('aegc-archi-local', 1)
     request.onupgradeneeded = () => request.result.createObjectStore('models')
@@ -115,6 +133,9 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
           )}
 
           <div className="flex items-center gap-2 border-l border-border pl-4">
+            <Button variant="outline" size="sm" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'} title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}>
+              {theme === 'dark' ? <Sun size={15}/> : <Moon size={15}/>}<span className="hidden xl:inline">{theme === 'dark' ? 'Claro' : 'Oscuro'}</span>
+            </Button>
             <span className="rounded border border-amber-500/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300" title="Las otras secciones conservan datos ilustrativos">{native && !showDemoMap ? 'ARCHI · Modelo local' : 'DEMO · Datos ilustrativos'}</span>
             <span className="hidden items-center gap-1.5 text-[12.5px] text-muted-foreground sm:inline-flex">
               <span
