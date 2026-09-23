@@ -91,6 +91,20 @@
   --archi-group: #253c50;
   --archi-line: #c1d3e7;
   --archi-flow: #5dd4ff;
+
+  /* Map node surfaces: explicit contrast instead of translucent white cards. */
+  --map-node-core-bg: #2b2416;
+  --map-node-integracion-bg: #261f35;
+  --map-node-aplicacion-bg: #182638;
+  --map-node-datos-bg: #173033;
+  --map-node-core-border: #8a6727;
+  --map-node-integracion-border: #6f4a9c;
+  --map-node-aplicacion-border: #315f91;
+  --map-node-datos-border: #287b76;
+  --map-node-title: #f8fafc;
+  --map-node-meta: #cbd5e1;
+  --map-node-badge-bg: rgba(255, 255, 255, 0.07);
+  --map-node-badge-border: rgba(255, 255, 255, 0.18);
 }
 
 .light {
@@ -125,6 +139,19 @@
   --archi-group: #eef3f7;
   --archi-line: #334155;
   --archi-flow: #006b9b;
+
+  --map-node-core-bg: #fff8e8;
+  --map-node-integracion-bg: #f6efff;
+  --map-node-aplicacion-bg: #eef6ff;
+  --map-node-datos-bg: #ecfbfb;
+  --map-node-core-border: #d7aa45;
+  --map-node-integracion-border: #9a72c7;
+  --map-node-aplicacion-border: #6f9fd0;
+  --map-node-datos-border: #54a9a1;
+  --map-node-title: #0f172a;
+  --map-node-meta: #475569;
+  --map-node-badge-bg: rgba(255, 255, 255, 0.68);
+  --map-node-badge-border: rgba(71, 85, 105, 0.24);
 }
 
 @layer base {
