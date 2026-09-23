@@ -134,7 +134,7 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
         <label className="block cursor-pointer rounded border border-border p-2 text-center">Elegir otro .archimate<input type="file" accept=".archimate,.xml" className="sr-only" onChange={(e) => { void compare(e.target.files?.[0]); e.target.value = '' }}/></label>
         {changes && <div><b>{changes.length} diferencias</b><div className="mt-2 max-h-48 space-y-1 overflow-auto">{changes.slice(0, 100).map((c) => <div className="rounded border border-border p-2" key={c.id}><b>{c.change} · {c.kind}</b><p>{c.before || '∅'} → {c.after || '∅'}</p><code className="break-all text-[10px]">{c.id}</code></div>)}</div></div>}
         <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Cambios preparados: {edits.length}</h4>
-          {edits.map((e, i) => <p key={i} className="rounded border border-border p-2">{e.kind} · {e.kind === 'rename' ? e.elementId : e.kind === 'createElement' ? e.name : e.sourceId}</p>)}
+          {edits.map((e, i) => <p key={i} className="rounded border border-border p-2">{e.kind} · {e.kind === 'rename' ? e.elementId : e.kind === 'createElement' ? e.name : e.kind === 'moveFigure' ? `${e.objectId} (${e.x}, ${e.y})` : e.sourceId}</p>)}
           <Button size="sm" disabled={!edits.length} onClick={download}>Descargar propuesta .archimate</Button>
           <p className="text-muted-foreground">No escribe directamente en GitLab. El archivo original queda intacto.</p></div>
         {element && <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Renombrar componente seleccionado</h4>
