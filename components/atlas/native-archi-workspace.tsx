@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle } from 'lucide-react'
 import { parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
 import { loadUniverse, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
@@ -51,6 +51,9 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'archi' | 'universe'>('archi')
+  const [fileHover, setFileHover] = useState(false)
+  const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; originX: number; originY: number; x: number; y: number } | null>(null)
+  const dragRef = useRef<typeof drag>(null)
   useEffect(() => {
     if (!initialModel || model?.id === initialModel.id) return
     setModel(initialModel)
@@ -60,7 +63,11 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   }, [initialModel, initialXml, model?.id])
 
   const view = model?.views.find((v) => v.id === viewId) ?? null
-  const objects = useMemo(() => view?.objects.slice().sort((a, b) => a.depth - b.depth) ?? [], [view])
+  const objects = useMemo(() => view?.objects.slice().sort((a, b) => a.depth - b.depth).map((o) => {
+    const edit = edits.find((e) => e.kind === 'moveFigure' && e.viewId === viewId && e.objectId === o.id)
+    return { ...o, x: drag?.id === o.id ? drag.x : edit?.kind === 'moveFigure' ? edit.x : o.x,
+      y: drag?.id === o.id ? drag.y : edit?.kind === 'moveFigure' ? edit.y : o.y }
+  }) ?? [], [view, edits, viewId, drag])
   const byId = useMemo(() => new Map(objects.map((obj) => [obj.id, obj])), [objects])
   const matches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
@@ -91,7 +98,42 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     } finally { setLoading(false) }
   }
 
-  return <div className="flex h-full min-h-0 w-full flex-col bg-background">
+  function fileDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault(); setFileHover(false)
+    const file = event.dataTransfer.files[0]
+    if (!file) return
+    if (!/\.(archimate|xml)$/i.test(file.name)) { setError('Soltá un archivo .archimate o .xml.'); return }
+    void load(file)
+  }
+
+  function startMove(event: PointerEvent<SVGGElement>, o: DiagramObject) {
+    if (event.button !== 0 || !viewId || mode !== 'archi' || /Group/i.test(o.type)) return
+    event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
+    const next = { id: o.id, startX: event.clientX, startY: event.clientY, originX: o.x, originY: o.y, x: o.x, y: o.y }
+    dragRef.current = next; setDrag(next); setSelected(o)
+  }
+  function move(event: PointerEvent<SVGGElement>) {
+    const current = dragRef.current
+    if (!current) return
+    const next = { ...current, x: Math.max(0, Math.round(current.originX + (event.clientX - current.startX) / scale)),
+      y: Math.max(0, Math.round(current.originY + (event.clientY - current.startY) / scale)) }
+    dragRef.current = next; setDrag(next)
+  }
+  function endMove() {
+    const current = dragRef.current
+    if (!current || !viewId) return
+    const original = view?.objects.find((o) => o.id === current.id)
+    if (original && (current.x !== original.x || current.y !== original.y))
+      setEdits((list) => [...list.filter((e) => !(e.kind === 'moveFigure' && e.viewId === viewId && e.objectId === current.id)),
+        { kind: 'moveFigure', viewId, objectId: current.id, x: current.x, y: current.y }])
+    dragRef.current = null; setDrag(null)
+  }
+
+  return <div className={`relative flex h-full min-h-0 w-full flex-col bg-background ${fileHover ? 'ring-2 ring-inset ring-sky-500' : ''}`}
+    onDragEnter={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setFileHover(true) } }}
+    onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
+    onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFileHover(false) }} onDrop={fileDrop}>
+    {fileHover && <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-background/85 text-lg font-semibold">Soltá el archivo .archimate para abrirlo</div>}
     <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
       <div className="min-w-0 flex-1">
         <h2 className="text-[16px] font-semibold">Modelo Archi · universo de interfaces</h2>
@@ -105,8 +147,8 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     {error && <div role="alert" className="flex items-center gap-2 border-b border-destructive/40 px-5 py-2 text-[12px] text-destructive"><AlertTriangle size={14}/>{error}</div>}
     {!model ? <div className="grid flex-1 place-items-center p-8 text-center"><div className="max-w-lg">
       <FileUp className="mx-auto mb-4 text-muted-foreground" size={32}/><h3 className="text-lg font-semibold">Abrí tu modelo empresarial</h3>
-      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">Podés usar <code>cepasgeneral.archimate</code>. Se abrirá la vista KETAN con sus bases locales, líneas, jobs, procedimientos, Gateway, CPI y SAP. También podrás explorar las demás vistas y ver dónde se reutiliza un mismo elemento.</p>
-      <p className="mt-3 text-[12px] text-muted-foreground">El archivo no se sube a GitHub ni a un servidor. Esta pantalla permite consulta; aún no modifica el modelo.</p>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">Elegí o arrastrá <code>cepasgeneral.archimate</code>. Se abrirá la vista KETAN con sus bases locales, líneas, jobs, procedimientos, Gateway, CPI y SAP. También podrás explorar las demás vistas y ver dónde se reutiliza un mismo elemento.</p>
+      <p className="mt-3 text-[12px] text-muted-foreground">El archivo se procesa en el navegador. Podés mover figuras y descargar los cambios como propuesta .archimate.</p>
       {loading && <p className="mt-3">Leyendo modelo…</p>}
     </div></div> : <div className="flex min-h-0 flex-1">
       <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar">
@@ -146,7 +188,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
               return <path key={c.id} d={path} fill="none" stroke={type === 'FlowRelationship' ? '#4baad8' : '#7d97ad'} strokeWidth="1.6"
                 strokeDasharray={type === 'AssociationRelationship' ? '5 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'} opacity=".8"/> })}
             {objects.map((o) => { const group = /Group/i.test(o.type); const selectedObject = selected?.id === o.id; const faded = !!query && !`${o.label} ${o.type}`.toLocaleLowerCase().includes(query.toLocaleLowerCase());
-              return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => setSelected(o)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o) } }} style={{cursor:'pointer',opacity: faded ? .35 : 1}}>
+              return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => setSelected(o)} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
                 <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 3 : 5} fill={group ? '#253c50' : fill(o.type)} fillOpacity={group ? .45 : 1} stroke={selectedObject ? '#f59e0b' : '#536c84'} strokeWidth={selectedObject ? 3 : 1.2}/>
                 {o.label && truncated(o.label, o.width).map((line, index) => <text key={index} x={o.x + 7} y={o.y + 18 + index * 14} fontSize="11" fontWeight={index ? 400 : 600} fill={group ? '#e2e9f3' : '#1b3145'}>{line}</text>)}
               </g> })}
