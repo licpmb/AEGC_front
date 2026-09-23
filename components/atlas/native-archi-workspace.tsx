@@ -85,9 +85,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       y: drag?.id === o.id ? drag.y : edit?.kind === 'moveFigure' ? edit.y : o.y }
   }) ?? [], [view, edits, viewId, drag])
   const byId = useMemo(() => new Map(objects.map((obj) => [obj.id, obj])), [objects])
-  const containerIds = useMemo(() => new Set(objects.filter((o) => /Group/i.test(o.type) || objects.some((child) =>
-    child.id !== o.id && child.depth > o.depth && child.x >= o.x && child.y >= o.y &&
-    child.x + child.width <= o.x + o.width && child.y + child.height <= o.y + o.height)).map((o) => o.id)), [objects])
+  const containerIds = useMemo(() => new Set(objects.filter((o) => o.hasChildren || /DiagramModelGroup|Grouping|Group/i.test(o.type)).map((o) => o.id)), [objects])
   const matches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase()
     return q ? objects.filter((o) => `${o.label} ${o.type}`.toLocaleLowerCase().includes(q)) : []
@@ -152,11 +150,36 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const group = containerIds.has(o.id)
     const selectedObject = selected?.id === o.id
     const faded = !!query && !`${o.label} ${o.type}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+    const stroke = selectedObject ? '#f59e0b' : (o.lineColor || (group ? 'var(--archi-line)' : '#536c84'))
+    const background = o.fillColor || (group ? 'var(--archi-group)' : fill(o.type))
+    const textColor = o.fontColor || (group ? 'var(--foreground)' : '#1b3145')
+    const rounded = /Service|Process|Function|Interaction/i.test(o.type) ? Math.min(22, o.height / 2) : group ? 1 : 3
+    const align = /center/i.test(o.textAlignment ?? '') ? 'middle' : /right/i.test(o.textAlignment ?? '') ? 'end' : 'start'
+    const textX = align === 'middle' ? o.x + o.width / 2 : align === 'end' ? o.x + o.width - 7 : o.x + 7
+    const lines = truncated(o.label, o.width - 14)
+    const baseY = /bottom/i.test(o.textPosition ?? '') ? o.y + o.height - 8 - (lines.length - 1) * 14 :
+      /middle|center/i.test(o.textPosition ?? '') ? o.y + o.height / 2 - ((lines.length - 1) * 14) / 2 + 4 : o.y + 18
+    const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1.2 }
+    const isData = /DataObject|Artifact/i.test(o.type)
+    const isNode = /^Node$|Device/i.test(o.type)
     return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => { setSelected(o); setSelectedConnectionId(null) }} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o); setSelectedConnectionId(null) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
-      <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 3 : 5} fill={group ? 'var(--archi-group)' : fill(o.type)} fillOpacity={group ? .55 : 1} stroke={selectedObject ? '#f59e0b' : '#536c84'} strokeWidth={selectedObject ? 3 : 1.2}/>
-      {o.label && truncated(o.label, o.width).map((line, index) => <text key={index} x={o.x + 7} y={o.y + 18 + index * 14} fontSize="11" fontWeight={index ? 400 : 600} fill={group ? 'var(--foreground)' : '#1b3145'}>{line}</text>)}
+      <title>{`${o.label} · ${o.type}${o.elementId ? ` · ${o.elementId}` : ''} · figura ${o.id}`}</title>
+      {isData && !group ? <>
+        <path d={`M ${o.x} ${o.y} H ${o.x + o.width - 13} L ${o.x + o.width} ${o.y + 13} V ${o.y + o.height} H ${o.x} Z`} {...common}/>
+        <path d={`M ${o.x + o.width - 13} ${o.y} V ${o.y + 13} H ${o.x + o.width}`} fill="none" stroke={stroke} strokeWidth={1.2}/>
+      </> : isNode && !group ? <>
+        <rect x={o.x} y={o.y + 6} width={Math.max(1, o.width - 8)} height={Math.max(1, o.height - 6)} rx={rounded} {...common}/>
+        <path d={`M ${o.x} ${o.y + 6} L ${o.x + 8} ${o.y} H ${o.x + o.width} V ${o.y + o.height - 6} L ${o.x + o.width - 8} ${o.y + o.height}`} fill="none" stroke={stroke} strokeWidth={1.2}/>
+      </> : <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={rounded} {...common} fillOpacity={group && !o.fillColor ? .55 : 1}/>}
+      {/ApplicationComponent/i.test(o.type) && !group && <>
+        <rect x={o.x + o.width - 20} y={o.y + 7} width="11" height="8" fill="none" stroke={stroke} strokeWidth="1"/>
+        <path d={`M ${o.x + o.width - 23} ${o.y + 9} h5 M ${o.x + o.width - 23} ${o.y + 13} h5`} stroke={stroke} strokeWidth="1"/>
+      </>}
+      {/Interface/i.test(o.type) && !group && <circle cx={o.x + o.width - 12} cy={o.y + 12} r="5" fill="none" stroke={stroke} strokeWidth="1.2"/>}
+      {o.label && lines.map((line, index) => <text key={index} x={textX} y={baseY + index * 14} fontSize="11" fontWeight={index ? 400 : 600} textAnchor={align} fill={textColor}>{line}</text>)}
     </g>
   }
+
   function routeFor(connectionId: string) {
     const c = connections.find((item) => item.id === connectionId)
     const source = c && byId.get(c.source), target = c && byId.get(c.target)
