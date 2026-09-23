@@ -18,6 +18,26 @@ export type ArchiEdit =
   | { kind: 'createElement'; id: string; name: string; elementType: 'ApplicationComponent' | 'ApplicationService' | 'DataObject' | 'Node' | 'SystemSoftware'; viewId?: string }
   | { kind: 'createRelationship'; id: string; sourceId: string; targetId: string; relationshipType: 'FlowRelationship' | 'ServingRelationship' | 'AssociationRelationship'; viewId?: string }
   | { kind: 'moveFigure'; viewId: string; objectId: string; x: number; y: number }
+  | { kind: 'routeConnection'; viewId: string; connectionId: string; points: Array<{ x: number; y: number }> }
+
+function sourceFingerprint(xml: string) {
+  let hash = 2166136261
+  for (let i = 0; i < xml.length; i++) hash = Math.imul(hash ^ xml.charCodeAt(i), 16777619)
+  return `${xml.length}:${hash >>> 0}`
+}
+
+export function loadArchiDraft(modelId: string, xml: string): ArchiEdit[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`aegc:draft:${modelId}`) ?? 'null')
+    if (saved?.fingerprint === sourceFingerprint(xml) && Array.isArray(saved.edits)) return saved.edits
+  } catch { /* Ignore an invalid or unavailable local draft. */ }
+  return []
+}
+
+export function saveArchiDraft(modelId: string, xml: string, edits: ArchiEdit[]) {
+  try { localStorage.setItem(`aegc:draft:${modelId}`, JSON.stringify({ fingerprint: sourceFingerprint(xml), edits })) }
+  catch { /* Export remains available even when local storage is unavailable. */ }
+}
 
 export function loadUniverse(modelId: string): UniverseState {
   try {
@@ -70,8 +90,31 @@ export function exportArchiChanges(originalXml: string, model: NativeModel, edit
     element.setAttributeNS(xsi, 'xsi:type', `archimate:${type}`)
     return element
   }
+  const moved = new Map(edits.filter((edit): edit is Extract<ArchiEdit, { kind: 'moveFigure' }> => edit.kind === 'moveFigure')
+    .map((edit) => [`${edit.viewId}:${edit.objectId}`, edit] as const))
   for (const edit of edits) {
-    if (edit.kind === 'moveFigure') {
+    if (edit.kind === 'routeConnection') {
+      const view = model.views.find((v) => v.id === edit.viewId)
+      const connection = view?.connections.find((c) => c.id === edit.connectionId)
+      const source = view?.objects.find((o) => o.id === connection?.source)
+      const target = view?.objects.find((o) => o.id === connection?.target)
+      const line = byId.get(edit.connectionId)
+      if (!source || !target || !line || edit.points.length > 40 || edit.points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y)))
+        throw new Error('Recorrido de conexión inválido.')
+      for (const old of Array.from(line.children).filter((item) => item.localName === 'bendpoint')) old.remove()
+      const from = moved.get(`${edit.viewId}:${source.id}`)
+      const to = moved.get(`${edit.viewId}:${target.id}`)
+      const sx = (from?.x ?? source.x) + source.width / 2, sy = (from?.y ?? source.y) + source.height / 2
+      const tx = (to?.x ?? target.x) + target.width / 2, ty = (to?.y ?? target.y) + target.height / 2
+      for (const point of edit.points) {
+        const bend = doc.createElement('bendpoint')
+        bend.setAttribute('startX', String(Math.round(point.x - sx)))
+        bend.setAttribute('startY', String(Math.round(point.y - sy)))
+        bend.setAttribute('endX', String(Math.round(point.x - tx)))
+        bend.setAttribute('endY', String(Math.round(point.y - ty)))
+        line.appendChild(bend)
+      }
+    } else if (edit.kind === 'moveFigure') {
       const view = model.views.find((v) => v.id === edit.viewId)
       const figure = view?.objects.find((o) => o.id === edit.objectId)
       const node = byId.get(edit.objectId)
