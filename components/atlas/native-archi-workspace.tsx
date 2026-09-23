@@ -254,15 +254,33 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
           if (match) { setViewId(match.v.id); setSelected(match.o); setMode('archi') }
         }}/></div> : <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
-            <defs><marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="var(--archi-line)"/></marker></defs>
+            <defs>
+              <marker id="native-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0 8 4.5 0 9 Z" fill="context-stroke"/></marker>
+              <marker id="native-open-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="context-stroke" strokeWidth="1.2"/></marker>
+              <marker id="native-triangle" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto"><path d="M1 1 L10 5.5 L1 10 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1.2"/></marker>
+              <marker id="native-diamond" markerWidth="12" markerHeight="12" refX="1" refY="6" orient="auto"><path d="M1 6 L6 1 L11 6 L6 11 Z" fill="context-stroke" stroke="context-stroke"/></marker>
+              <marker id="native-open-diamond" markerWidth="12" markerHeight="12" refX="1" refY="6" orient="auto"><path d="M1 6 L6 1 L11 6 L6 11 Z" fill="var(--archi-canvas)" stroke="context-stroke" strokeWidth="1.2"/></marker>
+            </defs>
             {objects.filter((o) => containerIds.has(o.id)).map(renderFigure)}
             {connections.map((c) => { const points = routeFor(c.id); if (!points.length) return null
               const path = points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ')
               const rel = c.relationId ? model.relationships.get(c.relationId) : undefined
               const type = rel?.type ?? c.type
               const connected = selectedConnectionId === c.id || !!selected && (selected.id === c.source || selected.id === c.target)
-              return <g key={c.id}><path d={path} fill="none" stroke={connected ? '#f59e0b' : type === 'FlowRelationship' ? 'var(--archi-flow)' : 'var(--archi-line)'} strokeWidth={connected ? 3.4 : 2.2}
-                strokeDasharray={type === 'AssociationRelationship' ? '6 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'}/>
+              const baseStroke = c.lineColor || (type === 'FlowRelationship' ? 'var(--archi-flow)' : 'var(--archi-line)')
+              const stroke = connected ? '#f59e0b' : baseStroke
+              const dash = /RealizationRelationship|AccessRelationship|InfluenceRelationship/i.test(type) ? '6 4' : undefined
+              const markerEnd = /AssociationRelationship/i.test(type) ? undefined :
+                /RealizationRelationship|SpecializationRelationship/i.test(type) ? 'url(#native-triangle)' :
+                /ServingRelationship/i.test(type) ? 'url(#native-open-arrow)' : 'url(#native-arrow)'
+              const markerStart = /CompositionRelationship/i.test(type) ? 'url(#native-diamond)' :
+                /AggregationRelationship/i.test(type) ? 'url(#native-open-diamond)' : undefined
+              const middle = points[Math.floor(points.length / 2)]
+              return <g key={c.id}>
+                <title>{`${rel?.name || type} · ${c.id}`}</title>
+                <path d={path} fill="none" stroke={stroke} strokeWidth={connected ? Math.max(3.4, (c.lineWidth ?? 1) + 2) : Math.max(1.2, (c.lineWidth ?? 1) * 1.4)}
+                  strokeDasharray={dash} strokeLinejoin="round" strokeLinecap="round" markerStart={markerStart} markerEnd={markerEnd}/>
+                {rel?.name && middle && <text x={middle.x + 5} y={middle.y - 5} fontSize="10" fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text>}
                 <path d={path} fill="none" stroke="transparent" strokeWidth="14" style={{ cursor: 'pointer' }} onClick={() => { setSelectedConnectionId(c.id); setSelected(null) }}/>
               </g> })}
             {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
