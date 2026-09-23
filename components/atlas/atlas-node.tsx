@@ -73,6 +73,15 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
   const Icon = ICONS[node.kind]
   const isHub = node.kind === 'erp' || node.kind === 'middleware'
   const country = node.country ? COUNTRY_META[node.country] : null
+  const group = meta.group
+  const surface = {
+    background: `var(--map-node-${group}-bg)`,
+    border: `var(--map-node-${group}-border)`,
+    title: 'var(--map-node-title)',
+    meta: 'var(--map-node-meta)',
+    badgeBg: 'var(--map-node-badge-bg)',
+    badgeBorder: 'var(--map-node-badge-border)',
+  }
 
   const heat =
     !showIssues || openIssues === 0
@@ -127,17 +136,19 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
       </NodeToolbar>
       <div
         className={cn(
-          'group relative flex h-full w-full items-center gap-3 rounded-lg border bg-card/90 backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
+          'group relative flex h-full w-full items-center gap-3 rounded-lg border backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
           isHub ? 'px-4 py-3.5 min-w-56' : 'px-3 py-2.5 min-w-44',
           dimmed && 'opacity-20 saturate-0',
           (selected || focused) && 'scale-[1.02]',
         )}
         style={{
-          borderColor: selected || focused ? meta.color : undefined,
+          background: surface.background,
+          color: surface.title,
+          borderColor: selected || focused ? meta.color : heat?.ring ?? surface.border,
           boxShadow:
             selected || focused
-              ? `0 0 0 1px ${meta.color}, 0 0 40px -10px ${meta.color}`
-              : (heat?.glow ?? undefined),
+              ? `0 0 0 1px ${meta.color}, 0 0 32px -12px ${meta.color}`
+              : heat?.glow ?? '0 4px 16px -12px rgba(15, 23, 42, 0.55)',
         }}
       >
         {/* Handles en los 4 lados para poder reordenar las conexiones manualmente. */}
@@ -181,27 +192,43 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
           <div className="flex items-center gap-1.5">
             <p
               className={cn(
-                'truncate font-semibold leading-tight',
+                'truncate font-bold leading-tight',
                 isHub ? 'text-[15px]' : 'text-[13px]',
               )}
+              style={{ color: surface.title }}
             >
               {node.label}
             </p>
             {country && (
               <span
                 title={country.label}
-                className="shrink-0 rounded-sm border border-border px-1 py-px font-mono text-[9px] font-semibold tracking-wide text-muted-foreground"
+                className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] font-semibold tracking-wide"
+                style={{
+                  color: surface.meta,
+                  background: surface.badgeBg,
+                  borderColor: surface.badgeBorder,
+                }}
               >
                 {country.flag} {node.country}
               </span>
             )}
             {node.status !== 'prod' && (
-              <span className="shrink-0 rounded-sm bg-secondary px-1 py-px font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+              <span
+                className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] font-semibold uppercase tracking-wide"
+                style={{
+                  color: surface.meta,
+                  background: surface.badgeBg,
+                  borderColor: surface.badgeBorder,
+                }}
+              >
                 {node.status}
               </span>
             )}
           </div>
-          <p className="truncate font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <p
+            className="truncate font-mono text-[10px] font-medium uppercase tracking-wider"
+            style={{ color: surface.meta }}
+          >
             {meta.label}
             {node.gitlab ? ' · git' : ''}
           </p>
@@ -228,7 +255,12 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
               onToggleCollapse?.(node.id)
             }}
             title={collapsed ? 'Expandir hijos' : 'Colapsar hijos'}
-            className="flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-secondary px-1.5 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="flex shrink-0 items-center gap-0.5 rounded-md border px-1.5 py-1 transition-colors hover:brightness-95"
+            style={{
+              color: surface.meta,
+              background: surface.badgeBg,
+              borderColor: surface.badgeBorder,
+            }}
           >
             {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
             {collapsed && hiddenChildren ? (
