@@ -92,6 +92,20 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
       setMessage('Modelo propuesto descargado. Abrilo y revisalo en Archi antes de versionarlo en GitLab corporativo.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'No se pudo exportar.') }
   }
+  function stageRename() {
+    if (!element || !rename.trim()) return
+    setEdits((list) => [...list.filter((e) => !(e.kind === 'rename' && e.elementId === element.id)),
+      { kind: 'rename', elementId: element.id, expectedName: element.name, name: rename.trim() }])
+    setRename('')
+    setMessage('Nombre actualizado en esta vista. Descargá la propuesta para conservarlo en Archi.')
+  }
+  function stageRelationship() {
+    if (!element || !targetId) return
+    setEdits((list) => [...list, { kind: 'createRelationship', id: newArchiId(), sourceId: element.id, targetId,
+      relationshipType: relationType, viewId: model.views.find((v) => v.id === viewId)?.objects.some((o) => o.elementId === targetId) ? viewId ?? undefined : undefined }])
+    setTargetId('')
+    setMessage('Relación agregada al borrador. Si los dos elementos están en esta vista, aparece en el diagrama.')
+  }
 
   return <aside className="flex w-[310px] shrink-0 flex-col border-l border-border bg-card">
     <div className="flex border-b border-border">{(['detail', 'universe', 'changes'] as const).map((key) => <button key={key} onClick={() => setTab(key)}
@@ -105,6 +119,14 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
           <div><dt className="text-muted-foreground">Activos vinculados</dt><dd>{linked.map((a) => a.name).join(', ') || 'Sin vincular'}</dd></div></dl>
         {element.documentation && <p className="whitespace-pre-wrap border-t border-border pt-3 text-muted-foreground">{element.documentation}</p>}
         {!!Object.keys(element.properties).length && <div className="border-t border-border pt-3"><strong>Propiedades</strong>{Object.entries(element.properties).map(([k, v]) => <p className="break-words" key={k}>{k}: {v}</p>)}</div>}
+        <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Editar elemento</h4>
+          <Input value={rename} onChange={(e) => setRename(e.target.value)} placeholder={element.name} aria-label="Nuevo nombre del elemento"/>
+          <Button size="sm" disabled={!rename.trim()} onClick={stageRename}>Guardar nombre en borrador</Button>
+          <h4 className="pt-2 font-semibold">Crear relación</h4>
+          <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="w-full rounded border border-border bg-background p-2" aria-label="Elemento destino"><option value="">Elegir destino</option>{peers.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.id.slice(-6)}</option>)}</select>
+          <select value={relationType} onChange={(e) => setRelationType(e.target.value as typeof relationType)} className="w-full rounded border border-border bg-background p-2" aria-label="Tipo de relación">{REL_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+          <Button size="sm" disabled={!targetId} onClick={stageRelationship}>Crear relación en borrador</Button>
+        </div>
         <div className="border-t border-border pt-3"><strong>Relaciones y vecinos</strong><div className="mt-2 max-h-60 space-y-2 overflow-auto">{related.map((r) => <div className="rounded border border-border p-2" key={r.id}><span className="text-muted-foreground">{r.type.replace('Relationship', '')} · {r.source === element.id ? 'salida' : 'entrada'}</span><p>{model.elements.get(r.source === element.id ? r.target : r.source)?.name ?? '(referencia sin resolver)'}</p><code className="break-all text-[10px]">{r.id}</code></div>)}</div></div>
       </> : <p className="text-muted-foreground">Elegí un elemento de una vista para consultar sus relaciones reales, propiedades y vínculos con el universo.</p>)}
       {tab === 'universe' && <>
@@ -134,18 +156,9 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
         <label className="block cursor-pointer rounded border border-border p-2 text-center">Elegir otro .archimate<input type="file" accept=".archimate,.xml" className="sr-only" onChange={(e) => { void compare(e.target.files?.[0]); e.target.value = '' }}/></label>
         {changes && <div><b>{changes.length} diferencias</b><div className="mt-2 max-h-48 space-y-1 overflow-auto">{changes.slice(0, 100).map((c) => <div className="rounded border border-border p-2" key={c.id}><b>{c.change} · {c.kind}</b><p>{c.before || '∅'} → {c.after || '∅'}</p><code className="break-all text-[10px]">{c.id}</code></div>)}</div></div>}
         <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Cambios preparados: {edits.length}</h4>
-          {edits.map((e, i) => <p key={i} className="rounded border border-border p-2">{e.kind} · {e.kind === 'rename' ? e.elementId : e.kind === 'createElement' ? e.name : e.kind === 'moveFigure' ? `${e.objectId} (${e.x}, ${e.y})` : e.sourceId}</p>)}
+          {edits.map((e, i) => <div key={i} className="flex items-center gap-2 rounded border border-border p-2"><span className="min-w-0 flex-1 break-all">{e.kind} · {e.kind === 'rename' ? e.elementId : e.kind === 'createElement' ? e.name : e.kind === 'moveFigure' ? `${e.objectId} (${e.x}, ${e.y})` : e.kind === 'routeConnection' ? `${e.connectionId} (${e.points.length} pliegues)` : e.sourceId}</span><button type="button" className="text-primary hover:underline" onClick={() => setEdits((list) => list.filter((_, index) => index !== i))} aria-label={`Deshacer cambio ${i + 1}`}>Deshacer</button></div>)}
           <Button size="sm" disabled={!edits.length} onClick={download}>Descargar propuesta .archimate</Button>
           <p className="text-muted-foreground">No escribe directamente en GitLab. El archivo original queda intacto.</p></div>
-        {element && <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Renombrar componente seleccionado</h4>
-          <Input value={rename} onChange={(e) => setRename(e.target.value)} placeholder={element.name}/>
-          <Button size="sm" onClick={() => { if (!rename.trim()) return; setEdits((list) => [...list, { kind: 'rename', elementId: element.id, expectedName: element.name, name: rename.trim() }]); setRename('') }}>Preparar cambio</Button>
-          <h4 className="pt-2 font-semibold">Relacionar con otro elemento</h4>
-          <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="w-full rounded border border-border bg-background p-2"><option value="">Elegir destino</option>{peers.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.id.slice(-6)}</option>)}</select>
-          <select value={relationType} onChange={(e) => setRelationType(e.target.value as typeof relationType)} className="w-full rounded border border-border bg-background p-2">{REL_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
-          <Button size="sm" disabled={!targetId} onClick={() => { if (!targetId) return; setEdits((list) => [...list, { kind: 'createRelationship', id: newArchiId(), sourceId: element.id, targetId, relationshipType: relationType,
-            viewId: model.views.find((v) => v.id === viewId)?.objects.some((o) => o.elementId === targetId) ? viewId ?? undefined : undefined }]); setTargetId('') }}>Preparar relación</Button>
-        </div>}
       </>}
       {message && <p role="status" className="rounded border border-border bg-accent p-2">{message}</p>}
     </div>
