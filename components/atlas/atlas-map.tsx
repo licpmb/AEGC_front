@@ -426,7 +426,7 @@ function MapInner() {
             variant={BackgroundVariant.Dots}
             gap={26}
             size={1}
-            color="oklch(0.98 0.01 264 / 9%)"
+            color="var(--border)"
           />
           <Controls
             showInteractive={false}
