@@ -95,6 +95,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
           )}
 
           <div className="flex items-center gap-2 border-l border-border pl-4">
+            <span className="rounded border border-amber-500/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300" title="El mapa, la carga y la reconciliación actuales muestran datos ilustrativos">DEMO · Datos ilustrativos</span>
             <span className="hidden items-center gap-1.5 text-[12.5px] text-muted-foreground sm:inline-flex">
               <span
                 className="rounded-sm px-1.5 py-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-wide"
@@ -105,7 +106,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
               >
                 Admin
               </span>
-              m.duarte@grupocepas.com
+              Usuario de demostración
             </span>
             <Button variant="ghost" size="icon" onClick={onLogout} aria-label="Salir">
               <LogOut size={15} />
