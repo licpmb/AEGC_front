@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle } from 'lucide-react'
-import { parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
-import { loadUniverse, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
+import { connectionPoints, parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
+import { loadArchiDraft, loadUniverse, saveArchiDraft, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
 import { ArchiUniversePanel } from './archi-universe-panel'
 import { UniverseGraph } from './universe-graph'
 import { Button } from '@/components/ui/button'
@@ -42,7 +42,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   const [model, setModel] = useState<NativeModel | null>(initialModel)
   const [originalXml, setOriginalXml] = useState(initialXml)
   const [universe, setUniverse] = useState<UniverseState>(() => initialModel ? loadUniverse(initialModel.id) : { modelId: '', assets: [] })
-  const [edits, setEdits] = useState<ArchiEdit[]>([])
+  const [edits, setEdits] = useState<ArchiEdit[]>(() => initialModel && initialXml ? loadArchiDraft(initialModel.id, initialXml) : [])
   const [viewId, setViewId] = useState<string | null>(() => initialModel ? (initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null) : null)
   const [selected, setSelected] = useState<DiagramObject | null>(null)
   const [query, setQuery] = useState('')
@@ -51,6 +51,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'archi' | 'universe'>('archi')
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [fileHover, setFileHover] = useState(false)
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; originX: number; originY: number; x: number; y: number } | null>(null)
   const dragRef = useRef<typeof drag>(null)
@@ -59,13 +60,28 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     setModel(initialModel)
     setOriginalXml(initialXml)
     setUniverse(loadUniverse(initialModel.id))
+    setEdits(loadArchiDraft(initialModel.id, initialXml))
     setViewId(initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null)
   }, [initialModel, initialXml, model?.id])
+  useEffect(() => { if (model && originalXml) saveArchiDraft(model.id, originalXml, edits) }, [model, originalXml, edits])
 
   const view = model?.views.find((v) => v.id === viewId) ?? null
+  const connections = useMemo(() => {
+    if (!view) return []
+    const extra = edits.flatMap((edit) => {
+      if (edit.kind !== 'createRelationship' || edit.viewId !== view.id) return []
+      const source = view.objects.find((o) => o.elementId === edit.sourceId)
+      const target = view.objects.find((o) => o.elementId === edit.targetId)
+      return source && target ? [{ id: edit.id, source: source.id, target: target.id, relationId: edit.id,
+        type: edit.relationshipType, bendpoints: [] }] : []
+    })
+    return [...view.connections, ...extra]
+  }, [view, edits])
   const objects = useMemo(() => view?.objects.slice().sort((a, b) => a.depth - b.depth).map((o) => {
     const edit = edits.find((e) => e.kind === 'moveFigure' && e.viewId === viewId && e.objectId === o.id)
-    return { ...o, x: drag?.id === o.id ? drag.x : edit?.kind === 'moveFigure' ? edit.x : o.x,
+    const rename = edits.find((e) => e.kind === 'rename' && e.elementId === o.elementId)
+    return { ...o, label: rename?.kind === 'rename' ? rename.name : o.label,
+      x: drag?.id === o.id ? drag.x : edit?.kind === 'moveFigure' ? edit.x : o.x,
       y: drag?.id === o.id ? drag.y : edit?.kind === 'moveFigure' ? edit.y : o.y }
   }) ?? [], [view, edits, viewId, drag])
   const byId = useMemo(() => new Map(objects.map((obj) => [obj.id, obj])), [objects])
@@ -94,6 +110,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       setEdits([])
       setViewId(parsed.views.some((v) => v.id === KETAN) ? KETAN : parsed.views[0].id)
       setSelected(null)
+      setSelectedConnectionId(null)
       setMode('archi')
       setScale(1)
     } catch (cause) {
@@ -135,10 +152,30 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const group = containerIds.has(o.id)
     const selectedObject = selected?.id === o.id
     const faded = !!query && !`${o.label} ${o.type}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
-    return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => setSelected(o)} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
+    return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => { setSelected(o); setSelectedConnectionId(null) }} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o); setSelectedConnectionId(null) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
       <rect x={o.x} y={o.y} width={o.width} height={o.height} rx={group ? 3 : 5} fill={group ? 'var(--archi-group)' : fill(o.type)} fillOpacity={group ? .55 : 1} stroke={selectedObject ? '#f59e0b' : '#536c84'} strokeWidth={selectedObject ? 3 : 1.2}/>
       {o.label && truncated(o.label, o.width).map((line, index) => <text key={index} x={o.x + 7} y={o.y + 18 + index * 14} fontSize="11" fontWeight={index ? 400 : 600} fill={group ? 'var(--foreground)' : '#1b3145'}>{line}</text>)}
     </g>
+  }
+  function routeFor(connectionId: string) {
+    const c = connections.find((item) => item.id === connectionId)
+    const source = c && byId.get(c.source), target = c && byId.get(c.target)
+    if (!c || !source || !target) return []
+    const draft = edits.find((e) => e.kind === 'routeConnection' && e.viewId === viewId && e.connectionId === connectionId)
+    const original = connectionPoints(c, source, target)
+    return draft?.kind === 'routeConnection' ? [original[0], ...draft.points, original.at(-1)!] : original
+  }
+  function updateRoute(connectionId: string, points: Array<{ x: number; y: number }>) {
+    if (!viewId) return
+    setEdits((list) => [...list.filter((e) => !(e.kind === 'routeConnection' && e.viewId === viewId && e.connectionId === connectionId)),
+      { kind: 'routeConnection', viewId, connectionId, points }])
+  }
+  function addBend() {
+    if (!selectedConnectionId) return
+    const route = routeFor(selectedConnectionId)
+    if (route.length < 2) return
+    const a = route.at(-2)!, b = route.at(-1)!
+    updateRoute(selectedConnectionId, [...route.slice(1, -1), { x: Math.round((a.x + b.x) / 2), y: Math.round((a.y + b.y) / 2) }])
   }
 
   return <div className={`relative flex h-full min-h-0 w-full flex-col bg-background ${fileHover ? 'ring-2 ring-inset ring-sky-500' : ''}`}
@@ -149,7 +186,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
       <div className="min-w-0 flex-1">
         <h2 className="text-[16px] font-semibold">Modelo Archi · universo de interfaces</h2>
-        <p className="text-[12px] text-muted-foreground">Abrí el archivo nativo y recorré todas sus vistas, componentes y conexiones. Se procesa en este navegador.</p>
+        <p className="text-[12px] text-muted-foreground">Abrí el archivo, mové figuras, seleccioná líneas para editar sus pliegues y editá elementos desde el panel. Los cambios se guardan como borrador local.</p>
       </div>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[12px] font-medium hover:bg-accent">
         <FileUp size={15}/>{model ? 'Cambiar modelo' : 'Abrir .archimate'}
@@ -176,8 +213,10 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
           <div className="mr-auto flex items-center gap-3"><button onClick={() => setMode('archi')} className={`rounded px-2 py-1 text-[12px] ${mode === 'archi' ? 'bg-accent font-semibold' : 'text-muted-foreground'}`}>Vista Archi</button>
             <button onClick={() => setMode('universe')} className={`rounded px-2 py-1 text-[12px] ${mode === 'universe' ? 'bg-accent font-semibold' : 'text-muted-foreground'}`}>Universo vinculado</button>
-            <span className="text-[11px] text-muted-foreground">{mode === 'archi' ? `${view?.name} · ${objects.length} figuras · ${view?.connections.length} conexiones` : `${universe.assets.length} activos · relaciones por IDs`}</span></div>
+            <span className="text-[11px] text-muted-foreground">{mode === 'archi' ? `${view?.name} · ${objects.length} figuras · ${connections.length} conexiones` : `${universe.assets.length} activos · relaciones por IDs`}</span></div>
           {mode === 'archi' && <>
+          {selectedConnectionId && <Button variant="outline" size="sm" onClick={addBend}>Añadir pliegue</Button>}
+          {edits.length > 0 && <span className="rounded border border-primary/40 px-2 py-1 text-[11px] text-foreground">{edits.length} cambios · descargá desde «Cambios»</span>}
           <div className="relative"><Search size={13} className="absolute left-2 top-2.5 text-muted-foreground"/><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar componente" aria-label="Buscar componente" className="h-8 w-48 pl-7 text-xs"/></div>
           <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.max(.4, s / 1.25))} aria-label="Alejar"><ZoomOut size={14}/></Button>
           <span className="w-10 text-center text-[11px]">{Math.round(scale * 100)}%</span>
@@ -194,17 +233,24 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
             <defs><marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 8 4 0 8" fill="var(--archi-line)"/></marker></defs>
             {objects.filter((o) => containerIds.has(o.id)).map(renderFigure)}
-            {view.connections.map((c) => { const from = byId.get(c.source); const to = byId.get(c.target); if (!from || !to) return null
-              const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
-              const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
-              const bends = c.bendpoints.map((p) => ({ x: start.x + p.startX, y: start.y + p.startY }))
-              const path = [start, ...bends, end].map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ')
+            {connections.map((c) => { const points = routeFor(c.id); if (!points.length) return null
+              const path = points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ')
               const rel = c.relationId ? model.relationships.get(c.relationId) : undefined
               const type = rel?.type ?? c.type
-              const connected = !!selected && (selected.id === c.source || selected.id === c.target)
-              return <path key={c.id} d={path} fill="none" stroke={connected ? '#f59e0b' : type === 'FlowRelationship' ? 'var(--archi-flow)' : 'var(--archi-line)'} strokeWidth={connected ? 3.4 : 2.2}
-                strokeDasharray={type === 'AssociationRelationship' ? '6 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'}/> })}
+              const connected = selectedConnectionId === c.id || !!selected && (selected.id === c.source || selected.id === c.target)
+              return <g key={c.id}><path d={path} fill="none" stroke={connected ? '#f59e0b' : type === 'FlowRelationship' ? 'var(--archi-flow)' : 'var(--archi-line)'} strokeWidth={connected ? 3.4 : 2.2}
+                strokeDasharray={type === 'AssociationRelationship' ? '6 4' : undefined} markerEnd={type === 'AssociationRelationship' ? undefined : 'url(#native-arrow)'}/>
+                <path d={path} fill="none" stroke="transparent" strokeWidth="14" style={{ cursor: 'pointer' }} onClick={() => { setSelectedConnectionId(c.id); setSelected(null) }}/>
+              </g> })}
             {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
+            {selectedConnectionId && routeFor(selectedConnectionId).slice(1, -1).map((point, index) => <circle key={`${selectedConnectionId}-${index}`} cx={point.x} cy={point.y} r="8" fill="#f59e0b" stroke="var(--archi-canvas)" strokeWidth="2" style={{cursor:'move', touchAction:'none'}} aria-label="Arrastrá para mover el pliegue; doble clic para quitar"
+              onDoubleClick={() => updateRoute(selectedConnectionId, routeFor(selectedConnectionId).slice(1, -1).filter((_, i) => i !== index))}
+              onPointerDown={(e) => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); e.currentTarget.dataset.startX = String(e.clientX); e.currentTarget.dataset.startY = String(e.clientY); e.currentTarget.dataset.pointX = String(point.x); e.currentTarget.dataset.pointY = String(point.y) }}
+              onPointerMove={(e) => { if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
+                const x = Math.round(Number(e.currentTarget.dataset.pointX) + (e.clientX - Number(e.currentTarget.dataset.startX)) / scale)
+                const y = Math.round(Number(e.currentTarget.dataset.pointY) + (e.clientY - Number(e.currentTarget.dataset.startY)) / scale)
+                const route = routeFor(selectedConnectionId).slice(1, -1); route[index] = { x, y }; updateRoute(selectedConnectionId, route)
+              }}/>) }
           </svg>}
         </div>}
       </section>
