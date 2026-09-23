@@ -4,6 +4,7 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { diffNativeModels, parseNativeArchi, type DiagramObject, type ModelChange, type NativeModel } from '@/lib/native-archi'
 import { exportArchiChanges, newArchiId, saveUniverse, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
 import { Button } from '@/components/ui/button'
+import { ATLAS_NODES } from '@/lib/atlas-data'
 import { Input } from '@/components/ui/input'
 
 interface Props {
@@ -19,6 +20,20 @@ interface Props {
 
 const TYPES = ['ApplicationComponent', 'ApplicationService', 'DataObject', 'Node', 'SystemSoftware'] as const
 const REL_TYPES = ['FlowRelationship', 'ServingRelationship', 'AssociationRelationship'] as const
+
+function normalized(value: string) {
+  return value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+}
+function similarity(a: string, b: string) {
+  const left = normalized(a), right = normalized(b)
+  if (!left || !right) return 0
+  if (left === right) return 1
+  if (left.includes(right) || right.includes(left)) return .86
+  const A = new Set(left.split(' ').filter((x) => x.length > 1))
+  const B = new Set(right.split(' ').filter((x) => x.length > 1))
+  const common = [...A].filter((x) => B.has(x)).length
+  return common / Math.max(A.size, B.size, 1)
+}
 
 export function ArchiUniversePanel({ model, selected, viewId, xml, universe, setUniverse, edits, setEdits }: Props) {
   const [tab, setTab] = useState<'detail' | 'universe' | 'changes'>('detail')
@@ -36,11 +51,33 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
   const related = useMemo(() => element ? [...model.relationships.values()].filter((r) => r.source === element.id || r.target === element.id) : [], [model, element])
   const linked = element ? universe.assets.filter((a) => a.archiIds.includes(element.id)) : []
   const peers = useMemo(() => [...model.elements.values()].filter((e) => e.id !== element?.id).sort((a, b) => a.name.localeCompare(b.name)), [model, element])
+  const suggestions = useMemo(() => !element ? [] : ATLAS_NODES
+    .map((node) => ({ node, score: Math.max(similarity(element.name, node.label), ...(node.tech ?? []).map((tech) => similarity(element.name, tech))) }))
+    .filter((item) => item.score >= .34)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4), [element])
 
   function update(next: UniverseState) {
     setUniverse(next)
     try { saveUniverse(next); setMessage('Vínculo guardado en este navegador.') }
     catch { setMessage('El navegador no permitió guardar el vínculo localmente.') }
+  }
+
+  function bindToAtlas(nodeId: string) {
+    if (!element) return
+    const node = ATLAS_NODES.find((item) => item.id === nodeId)
+    if (!node) return
+    const found = universe.assets.find((a) => a.interfaceIds.includes(node.id))
+    const assets = found ? universe.assets.map((a) => a.id === found.id ? {
+      ...a, name: a.name || node.label, archiIds: [...new Set([...a.archiIds, element.id])],
+      interfaceIds: [...new Set([...a.interfaceIds, node.id])],
+    } : a) : [...universe.assets, {
+      id: `atlas:${node.id}`, name: node.label, kind: node.kind,
+      archiIds: [element.id], interfaceIds: [node.id],
+    }]
+    update({ ...universe, assets })
+    setExistingAsset(found?.id ?? `atlas:${node.id}`)
+    setMessage(`Vinculado «${element.name}» con «${node.label}». El vínculo usa los IDs estables de ambos lados.`)
   }
 
   function bind() {
@@ -141,11 +178,20 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
             {!!missing.length && <p className="text-amber-600">{missing.length} IDs ausentes en esta versión del modelo.</p>}
             <p className="break-all font-mono text-[10px]">{a.id}</p></div>
         })}
-        {element && <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Vincular «{element.name}»</h4>
-          <select value={existingAsset} onChange={(e) => setExistingAsset(e.target.value)} className="w-full rounded border border-border bg-background p-2"><option value="">Nuevo activo</option>{universe.assets.map((a) => <option value={a.id} key={a.id}>{a.name}</option>)}</select>
+        {element && <div className="space-y-3 border-t border-border pt-3"><h4 className="font-semibold">Vincular «{element.name}»</h4>
+          {!!suggestions.length && <div className="rounded-md border border-primary/30 bg-primary/5 p-2">
+            <p className="mb-2 text-[11px] font-semibold">Sugerencias del universo</p>
+            <div className="space-y-1.5">{suggestions.map(({ node, score }) => <button type="button" key={node.id} onClick={() => bindToAtlas(node.id)}
+              className="flex w-full items-center justify-between rounded border border-border bg-background px-2 py-2 text-left hover:bg-accent">
+              <span><b>{node.label}</b><span className="ml-1 text-muted-foreground">· {node.kind}</span></span>
+              <span className="font-mono text-[10px] text-muted-foreground">{Math.round(score * 100)}%</span>
+            </button>)}</div>
+            <p className="mt-2 text-[10px] text-muted-foreground">La sugerencia compara nombre y tecnología; el vínculo se confirma recién al hacer clic.</p>
+          </div>}
+          <select value={existingAsset} onChange={(e) => setExistingAsset(e.target.value)} className="w-full rounded border border-border bg-background p-2 text-foreground"><option value="">Nuevo activo</option>{universe.assets.map((a) => <option value={a.id} key={a.id}>{a.name}</option>)}</select>
           {!existingAsset && <Input value={assetName} onChange={(e) => setAssetName(e.target.value)} placeholder={element.name}/>}
-          <Input value={interfaceId} onChange={(e) => setInterfaceId(e.target.value)} placeholder="Interfaz, ej. INT-PP01"/>
-          <Button size="sm" onClick={bind}>Guardar vínculo por ID</Button></div>}
+          <Input value={interfaceId} onChange={(e) => setInterfaceId(e.target.value)} placeholder="ID de interfaz o nodo del universo"/>
+          <Button size="sm" onClick={bind}>Guardar vínculo manual</Button></div>}
         <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Nuevo componente desde el front</h4>
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre del componente"/>
           <select value={newType} onChange={(e) => setNewType(e.target.value as typeof newType)} className="w-full rounded border border-border bg-background p-2">{TYPES.map((t) => <option key={t}>{t}</option>)}</select>
