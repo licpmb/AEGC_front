@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle } from 'lucide-react'
 import { parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
 import { loadUniverse, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
@@ -34,12 +34,16 @@ function truncated(label: string, width: number): string[] {
   return lines.map((line) => line.length > max ? line.slice(0, max - 1) + '…' : line)
 }
 
-export function NativeArchiWorkspace() {
-  const [model, setModel] = useState<NativeModel | null>(null)
-  const [originalXml, setOriginalXml] = useState('')
-  const [universe, setUniverse] = useState<UniverseState>({ modelId: '', assets: [] })
+export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onModelLoaded }: {
+  initialModel?: NativeModel | null
+  initialXml?: string
+  onModelLoaded?: (model: NativeModel, xml: string) => void
+}) {
+  const [model, setModel] = useState<NativeModel | null>(initialModel)
+  const [originalXml, setOriginalXml] = useState(initialXml)
+  const [universe, setUniverse] = useState<UniverseState>(() => initialModel ? loadUniverse(initialModel.id) : { modelId: '', assets: [] })
   const [edits, setEdits] = useState<ArchiEdit[]>([])
-  const [viewId, setViewId] = useState<string | null>(null)
+  const [viewId, setViewId] = useState<string | null>(() => initialModel ? (initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null) : null)
   const [selected, setSelected] = useState<DiagramObject | null>(null)
   const [query, setQuery] = useState('')
   const [viewQuery, setViewQuery] = useState('')
@@ -47,6 +51,13 @@ export function NativeArchiWorkspace() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'archi' | 'universe'>('archi')
+  useEffect(() => {
+    if (!initialModel || model?.id === initialModel.id) return
+    setModel(initialModel)
+    setOriginalXml(initialXml)
+    setUniverse(loadUniverse(initialModel.id))
+    setViewId(initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null)
+  }, [initialModel, initialXml, model?.id])
 
   const view = model?.views.find((v) => v.id === viewId) ?? null
   const objects = useMemo(() => view?.objects.slice().sort((a, b) => a.depth - b.depth) ?? [], [view])
@@ -68,6 +79,7 @@ export function NativeArchiWorkspace() {
       const parsed = parseNativeArchi(source)
       setModel(parsed)
       setOriginalXml(source)
+      onModelLoaded?.(parsed, source)
       setUniverse(loadUniverse(parsed.id))
       setEdits([])
       setViewId(parsed.views.some((v) => v.id === KETAN) ? KETAN : parsed.views[0].id)
