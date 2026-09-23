@@ -29,7 +29,11 @@ export interface DiagramObject {
   depth: number
   fillColor?: string
   lineColor?: string
+  fontColor?: string
+  font?: string
+  textAlignment?: string
   textPosition?: string
+  hasChildren?: boolean
 }
 
 export interface DiagramConnection {
@@ -38,6 +42,9 @@ export interface DiagramConnection {
   target: string
   relationId?: string
   type: string
+  lineColor?: string
+  lineWidth?: number
+  fontColor?: string
   bendpoints: Array<{ startX: number; startY: number; endX: number; endY: number }>
 }
 
@@ -168,7 +175,11 @@ export function parseNativeArchi(source: string): NativeModel {
           height: Math.max(22, numeric(b.getAttribute('height'), 55)), depth,
           fillColor: child.getAttribute('fillColor') ?? undefined,
           lineColor: child.getAttribute('lineColor') ?? undefined,
-          textPosition: child.getAttribute('textPosition') ?? undefined })
+          fontColor: child.getAttribute('fontColor') ?? undefined,
+          font: child.getAttribute('font') ?? undefined,
+          textAlignment: child.getAttribute('textAlignment') ?? undefined,
+          textPosition: child.getAttribute('textPosition') ?? undefined,
+          hasChildren: children(child, 'child').length > 0 })
         for (const line of children(child, 'sourceConnection')) {
           const connectionId = line.getAttribute('id')
           if (!connectionId || seenConnections.has(connectionId)) continue
@@ -176,6 +187,9 @@ export function parseNativeArchi(source: string): NativeModel {
           connections.push({ id: connectionId, source: line.getAttribute('source') ?? '',
             target: line.getAttribute('target') ?? '',
             relationId: line.getAttribute('archimateRelationship') ?? undefined, type: xmlType(line),
+            lineColor: line.getAttribute('lineColor') ?? undefined,
+            lineWidth: Math.max(1, numeric(line.getAttribute('lineWidth'), 1)),
+            fontColor: line.getAttribute('fontColor') ?? undefined,
             bendpoints: children(line, 'bendpoint').map((point) => ({
               startX: numeric(point.getAttribute('startX'), 0), startY: numeric(point.getAttribute('startY'), 0),
               endX: numeric(point.getAttribute('endX'), 0), endY: numeric(point.getAttribute('endY'), 0),
