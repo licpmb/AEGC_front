@@ -93,16 +93,16 @@
   --archi-flow: #5dd4ff;
 
   /* Map node surfaces: explicit contrast instead of translucent white cards. */
-  --map-node-core-bg: #2b2416;
-  --map-node-integracion-bg: #261f35;
-  --map-node-aplicacion-bg: #182638;
-  --map-node-datos-bg: #173033;
-  --map-node-core-border: #8a6727;
-  --map-node-integracion-border: #6f4a9c;
-  --map-node-aplicacion-border: #315f91;
-  --map-node-datos-border: #287b76;
-  --map-node-title: #f8fafc;
-  --map-node-meta: #cbd5e1;
+  --map-node-core-bg: #4a3f27;
+  --map-node-integracion-bg: #443653;
+  --map-node-aplicacion-bg: #30475f;
+  --map-node-datos-bg: #2f5150;
+  --map-node-core-border: #b78a35;
+  --map-node-integracion-border: #9270ba;
+  --map-node-aplicacion-border: #5688b8;
+  --map-node-datos-border: #4b9a93;
+  --map-node-title: #ffffff;
+  --map-node-meta: #e0e7ef;
   --map-node-badge-bg: rgba(255, 255, 255, 0.07);
   --map-node-badge-border: rgba(255, 255, 255, 0.18);
 }
@@ -140,16 +140,16 @@
   --archi-line: #334155;
   --archi-flow: #006b9b;
 
-  --map-node-core-bg: #7a6131;
-  --map-node-integracion-bg: #60477b;
-  --map-node-aplicacion-bg: #3f6488;
-  --map-node-datos-bg: #3d706c;
-  --map-node-core-border: #e6bc69;
-  --map-node-integracion-border: #c7a0e9;
-  --map-node-aplicacion-border: #93bfea;
-  --map-node-datos-border: #86cdc5;
-  --map-node-title: #ffffff;
-  --map-node-meta: #e8eef5;
+  --map-node-core-bg: #d8bd78;
+  --map-node-integracion-bg: #c5a9dc;
+  --map-node-aplicacion-bg: #9fc3e3;
+  --map-node-datos-bg: #98c9c4;
+  --map-node-core-border: #b98524;
+  --map-node-integracion-border: #8f63b2;
+  --map-node-aplicacion-border: #4f83b5;
+  --map-node-datos-border: #3d8f88;
+  --map-node-title: #172033;
+  --map-node-meta: #354052;
   --map-node-badge-bg: rgba(255, 255, 255, 0.10);
   --map-node-badge-border: rgba(255, 255, 255, 0.24);
 }
