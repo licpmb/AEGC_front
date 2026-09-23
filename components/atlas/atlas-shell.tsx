@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   FileText,
   DownloadCloud,
+  Network,
 } from 'lucide-react'
 import { AtlasMap } from './atlas-map'
 import { DataEntry } from './data-entry'
@@ -16,12 +17,14 @@ import { RolesAdmin } from './roles-admin'
 import { DocCoverage } from './doc-coverage'
 import { ImportReconcile } from './import-reconcile'
 import { Brand } from './brand'
+import { NativeArchiWorkspace } from './native-archi-workspace'
 import { Button } from '@/components/ui/button'
 import { ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
 import { cn } from '@/lib/utils'
 
 const VIEWS = [
   { key: 'mapa', label: 'Mapa', icon: MapIcon },
+  { key: 'archi', label: 'Modelo Archi', icon: Network },
   { key: 'documentacion', label: 'Documentación', icon: FileText },
   { key: 'importar', label: 'Importar', icon: DownloadCloud },
   { key: 'datos', label: 'Cargar datos', icon: Database },
@@ -113,6 +116,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
 
       <div className="flex min-h-0 flex-1">
         {view === 'mapa' && <AtlasMap />}
+        {view === 'archi' && <NativeArchiWorkspace />}
         {view === 'documentacion' && <DocCoverage />}
         {view === 'importar' && <ImportReconcile />}
         {view === 'datos' && <DataEntry />}
