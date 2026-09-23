@@ -48,7 +48,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Single "mission control" dark theme, independent of OS preference. */
+/* Shared semantic palette; the user can switch themes from the app header. */
 :root,
 .dark {
   color-scheme: dark;
@@ -87,6 +87,44 @@
   --sidebar-accent-foreground: oklch(0.96 0.008 264);
   --sidebar-border: oklch(0.98 0.01 264 / 12%);
   --sidebar-ring: oklch(0.68 0.155 253);
+  --archi-canvas: #111820;
+  --archi-group: #253c50;
+  --archi-line: #c1d3e7;
+  --archi-flow: #5dd4ff;
+}
+
+.light {
+  color-scheme: light;
+  --background: oklch(0.985 0.006 255);
+  --foreground: oklch(0.23 0.025 260);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.53 0.15 251);
+  --primary-foreground: white;
+  --secondary: oklch(0.94 0.012 255);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.95 0.008 255);
+  --muted-foreground: oklch(0.43 0.025 260);
+  --accent: oklch(0.92 0.02 252);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.54 0.19 25);
+  --border: oklch(0.79 0.016 255);
+  --input: var(--border);
+  --ring: var(--primary);
+  --sidebar: oklch(0.965 0.009 255);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: white;
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+  --archi-canvas: #ffffff;
+  --archi-group: #eef3f7;
+  --archi-line: #334155;
+  --archi-flow: #006b9b;
 }
 
 @layer base {
@@ -101,9 +139,15 @@
 /* React Flow overrides so the canvas inherits the theme */
 .react-flow {
   --xy-background-color: transparent;
-  --xy-edge-stroke-default: oklch(0.98 0.01 264 / 22%);
+  --xy-edge-stroke-default: var(--archi-line);
   --xy-edge-stroke-selected-default: var(--primary);
   --xy-attribution-background-color-default: transparent;
+}
+.light .react-flow {
+  --xy-background-color: var(--background);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-color: var(--foreground);
+  background-color: var(--background);
 }
 .react-flow__attribution {
   display: none;
@@ -142,4 +186,21 @@
 .edge-animated {
   stroke-dasharray: 4 6;
   animation: dash-flow 0.9s linear infinite;
+}
+
+
+/* Theme contrast guardrails: icons and native controls must follow semantic foreground. */
+[data-slot='button'] svg,
+button svg {
+  color: currentColor;
+}
+.light input,
+.light select,
+.light textarea {
+  color: var(--foreground);
+  background-color: var(--background);
+}
+.light .react-flow__controls-button {
+  color: var(--foreground) !important;
+  background: var(--card) !important;
 }
