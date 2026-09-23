@@ -17,6 +17,7 @@ export type ArchiEdit =
   | { kind: 'rename'; elementId: string; expectedName: string; name: string }
   | { kind: 'createElement'; id: string; name: string; elementType: 'ApplicationComponent' | 'ApplicationService' | 'DataObject' | 'Node' | 'SystemSoftware'; viewId?: string }
   | { kind: 'createRelationship'; id: string; sourceId: string; targetId: string; relationshipType: 'FlowRelationship' | 'ServingRelationship' | 'AssociationRelationship'; viewId?: string }
+  | { kind: 'moveFigure'; viewId: string; objectId: string; x: number; y: number }
 
 export function loadUniverse(modelId: string): UniverseState {
   try {
@@ -70,7 +71,15 @@ export function exportArchiChanges(originalXml: string, model: NativeModel, edit
     return element
   }
   for (const edit of edits) {
-    if (edit.kind === 'rename') {
+    if (edit.kind === 'moveFigure') {
+      const view = model.views.find((v) => v.id === edit.viewId)
+      const figure = view?.objects.find((o) => o.id === edit.objectId)
+      const node = byId.get(edit.objectId)
+      const bounds = node && child(node, 'bounds')
+      if (!figure || !bounds || !Number.isFinite(edit.x) || !Number.isFinite(edit.y)) throw new Error('Figura o posición inválida.')
+      bounds.setAttribute('x', String(Number(bounds.getAttribute('x') ?? 0) + edit.x - figure.x))
+      bounds.setAttribute('y', String(Number(bounds.getAttribute('y') ?? 0) + edit.y - figure.y))
+    } else if (edit.kind === 'rename') {
       const el = byId.get(edit.elementId)
       if (!el || !model.elements.has(edit.elementId) || el.getAttribute('name') !== edit.expectedName)
         throw new Error(`Conflicto de versión en el elemento ${edit.elementId}.`)
