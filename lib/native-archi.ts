@@ -45,6 +45,8 @@ export interface DiagramConnection {
   lineColor?: string
   lineWidth?: number
   fontColor?: string
+  font?: string
+  textPosition?: string
   bendpoints: Array<{ startX: number; startY: number; endX: number; endY: number }>
 }
 
@@ -190,6 +192,8 @@ export function parseNativeArchi(source: string): NativeModel {
             lineColor: line.getAttribute('lineColor') ?? undefined,
             lineWidth: Math.max(1, numeric(line.getAttribute('lineWidth'), 1)),
             fontColor: line.getAttribute('fontColor') ?? undefined,
+            font: line.getAttribute('font') ?? undefined,
+            textPosition: line.getAttribute('textPosition') ?? undefined,
             bendpoints: children(line, 'bendpoint').map((point) => ({
               startX: numeric(point.getAttribute('startX'), 0), startY: numeric(point.getAttribute('startY'), 0),
               endX: numeric(point.getAttribute('endX'), 0), endY: numeric(point.getAttribute('endY'), 0),
