@@ -12,11 +12,14 @@ import { Input } from '@/components/ui/input'
 const KETAN = 'id-a653960d5e4b4d999b7b5187cc313b61'
 
 function fill(type: string): string {
-  if (/Business|Product|Contract/i.test(type)) return '#e5cb77'
-  if (/Application|DataObject/i.test(type)) return '#9ad8ed'
-  if (/Node|SystemSoftware|Device|Technology|Artifact|Path/i.test(type)) return '#b2df9b'
-  if (/Grouping|Group/i.test(type)) return '#22364b'
-  return '#c2d5e7'
+  if (/Strategy|Capability|Resource|ValueStream/i.test(type)) return '#f5deaa'
+  if (/Business|Product|Contract/i.test(type)) return '#ffffb5'
+  if (/Application|DataObject/i.test(type)) return '#b5ffff'
+  if (/Node|SystemSoftware|Device|Technology|Artifact|Path/i.test(type)) return '#c9e7b7'
+  if (/Motivation|Goal|Requirement|Stakeholder|Driver/i.test(type)) return '#ccccff'
+  if (/Implementation|WorkPackage|Deliverable|Plateau|Gap/i.test(type)) return '#ffe0e0'
+  if (/Grouping|Group/i.test(type)) return '#ffffff'
+  return '#f2f2f2'
 }
 
 function truncated(label: string, width: number): string[] {
@@ -154,17 +157,20 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const background = o.fillColor || (group ? 'var(--archi-group)' : fill(o.type))
     const textColor = o.fontColor || (group ? 'var(--foreground)' : '#1b3145')
     const rounded = /Service|Process|Function|Interaction/i.test(o.type) ? Math.min(22, o.height / 2) : group ? 1 : 3
-    const align = /center/i.test(o.textAlignment ?? '') ? 'middle' : /right/i.test(o.textAlignment ?? '') ? 'end' : 'start'
+    const alignCode = o.textAlignment ?? '2'
+    const align = alignCode === '1' ? 'start' : alignCode === '4' ? 'end' : 'middle'
     const textX = align === 'middle' ? o.x + o.width / 2 : align === 'end' ? o.x + o.width - 7 : o.x + 7
     const lines = truncated(o.label, o.width - 14)
-    const baseY = /bottom/i.test(o.textPosition ?? '') ? o.y + o.height - 8 - (lines.length - 1) * 14 :
-      /middle|center/i.test(o.textPosition ?? '') ? o.y + o.height / 2 - ((lines.length - 1) * 14) / 2 + 4 : o.y + 18
+    const positionCode = o.textPosition ?? '1'
+    const baseY = positionCode === '2' ? o.y + o.height - 8 - (lines.length - 1) * 14 :
+      positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * 14) / 2 + 4 : o.y + 18
     const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1.2 }
+    const isNote = /^Note$/i.test(o.type)
     const isData = /DataObject|Artifact/i.test(o.type)
     const isNode = /^Node$|Device/i.test(o.type)
     return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => { setSelected(o); setSelectedConnectionId(null) }} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o); setSelectedConnectionId(null) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
       <title>{`${o.label} · ${o.type}${o.elementId ? ` · ${o.elementId}` : ''} · figura ${o.id}`}</title>
-      {isData && !group ? <>
+      {isNote ? <rect x={o.x} y={o.y} width={o.width} height={o.height} rx="1" fill={o.fillColor || 'var(--background)'} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/> : isData && !group ? <>
         <path d={`M ${o.x} ${o.y} H ${o.x + o.width - 13} L ${o.x + o.width} ${o.y + 13} V ${o.y + o.height} H ${o.x} Z`} {...common}/>
         <path d={`M ${o.x + o.width - 13} ${o.y} V ${o.y + 13} H ${o.x + o.width}`} fill="none" stroke={stroke} strokeWidth={1.2}/>
       </> : isNode && !group ? <>
