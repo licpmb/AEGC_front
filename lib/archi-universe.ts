@@ -15,6 +15,9 @@ export interface UniverseState {
 
 export type ArchiEdit =
   | { kind: 'rename'; elementId: string; expectedName: string; name: string }
+  | { kind: 'setDocumentation'; elementId: string; documentation: string }
+  | { kind: 'setProperty'; elementId: string; key: string; value: string }
+  | { kind: 'deleteProperty'; elementId: string; key: string }
   | { kind: 'createElement'; id: string; name: string; elementType: 'ApplicationComponent' | 'ApplicationService' | 'DataObject' | 'Node' | 'SystemSoftware'; viewId?: string }
   | { kind: 'createRelationship'; id: string; sourceId: string; targetId: string; relationshipType:
       'AccessRelationship' | 'AggregationRelationship' | 'AssignmentRelationship' | 'AssociationRelationship' |
@@ -85,7 +88,16 @@ export function exportArchiChanges(originalXml: string, model: NativeModel, edit
   if (doc.querySelector('parsererror') || doc.documentElement.getAttribute('id') !== model.id)
     throw new Error('La fuente original no coincide con el modelo abierto.')
   const root = doc.documentElement
-  const byId = new Map(Array.from(root.getElementsByTagName('*')).filter((el) => el.hasAttribute('id')).map((el) => [el.getAttribute('id')!, el]))
+  const allNodes = Array.from(root.getElementsByTagName('*'))
+  const byId = new Map(allNodes.filter((el) => el.hasAttribute('id')).map((el) => [el.getAttribute('id')!, el]))
+  const propertyDefinitions = new Map<string, string>()
+  for (const node of allNodes) {
+    if (node.localName !== 'property') continue
+    const id = node.getAttribute('id')
+    const key = node.getAttribute('key')
+    if (id && key) propertyDefinitions.set(id, key)
+  }
+  const propertyKey = (node: Element) => node.getAttribute('key') ?? propertyDefinitions.get(node.getAttribute('keyRef') ?? '') ?? ''
   const xsi = 'http://www.w3.org/2001/XMLSchema-instance'
   const make = (tag: string, id: string, type: string) => {
     const element = doc.createElement(tag)
@@ -131,6 +143,38 @@ export function exportArchiChanges(originalXml: string, model: NativeModel, edit
         throw new Error(`Conflicto de versión en el elemento ${edit.elementId}.`)
       if (!edit.name.trim()) throw new Error('El nombre no puede estar vacío.')
       el.setAttribute('name', edit.name.trim())
+    } else if (edit.kind === 'setDocumentation') {
+      const el = byId.get(edit.elementId)
+      if (!el || !model.elements.has(edit.elementId)) throw new Error(`Elemento no encontrado: ${edit.elementId}.`)
+      let docNode = Array.from(el.children).find((item) => item.localName === 'documentation')
+      if (!edit.documentation.trim()) {
+        docNode?.remove()
+      } else {
+        if (!docNode) {
+          docNode = doc.createElement('documentation')
+          el.appendChild(docNode)
+        }
+        docNode.textContent = edit.documentation
+      }
+    } else if (edit.kind === 'setProperty') {
+      const el = byId.get(edit.elementId)
+      const key = edit.key.trim()
+      if (!el || !model.elements.has(edit.elementId) || !key) throw new Error('Elemento o propiedad inválidos.')
+      const existing = Array.from(el.children).find((item) => item.localName === 'property' && propertyKey(item) === key)
+      if (existing) {
+        existing.setAttribute('value', edit.value)
+        if (!existing.hasAttribute('key') && !existing.hasAttribute('keyRef')) existing.setAttribute('key', key)
+      } else {
+        const property = doc.createElement('property')
+        property.setAttribute('key', key)
+        property.setAttribute('value', edit.value)
+        el.appendChild(property)
+      }
+    } else if (edit.kind === 'deleteProperty') {
+      const el = byId.get(edit.elementId)
+      if (!el || !model.elements.has(edit.elementId)) throw new Error(`Elemento no encontrado: ${edit.elementId}.`)
+      const existing = Array.from(el.children).find((item) => item.localName === 'property' && propertyKey(item) === edit.key)
+      existing?.remove()
     } else if (edit.kind === 'createElement') {
       if (byId.has(edit.id) || !edit.name.trim()) throw new Error('ID duplicado o nombre vacío.')
       const folderType = ['Node', 'SystemSoftware'].includes(edit.elementType) ? 'technology' : 'application'
