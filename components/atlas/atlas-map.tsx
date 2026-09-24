@@ -171,6 +171,8 @@ type MultiNodeAction =
   | 'align-top'
   | 'align-center-y'
   | 'align-bottom'
+  | 'distribute-horizontal'
+  | 'distribute-vertical'
   | 'same-width'
   | 'same-height'
   | 'same-size'
@@ -357,6 +359,56 @@ function MapInner() {
       const centerX = (left + right) / 2
       const centerY = (top + bottom) / 2
       const selected = new Set(selectedNodeIds)
+
+      if (action === 'distribute-horizontal') {
+        if (selectedNodes.length < 3) return
+        const ordered = [...selectedNodes].sort((a, b) => a.position.x - b.position.x)
+        const first = ordered[0]
+        const last = ordered[ordered.length - 1]
+        const start = first.position.x
+        const end = last.position.x + nodeWidth(last)
+        const totalWidths = ordered.reduce((sum, node) => sum + nodeWidth(node), 0)
+        const gap = (end - start - totalWidths) / (ordered.length - 1)
+        const xById = new Map<string, number>()
+        let cursor = start
+        for (const node of ordered) {
+          xById.set(node.id, cursor)
+          cursor += nodeWidth(node) + gap
+        }
+        setNodes((prev) =>
+          prev.map((node) =>
+            selected.has(node.id)
+              ? { ...node, position: { ...node.position, x: xById.get(node.id) ?? node.position.x } }
+              : node,
+          ),
+        )
+        return
+      }
+
+      if (action === 'distribute-vertical') {
+        if (selectedNodes.length < 3) return
+        const ordered = [...selectedNodes].sort((a, b) => a.position.y - b.position.y)
+        const first = ordered[0]
+        const last = ordered[ordered.length - 1]
+        const start = first.position.y
+        const end = last.position.y + nodeHeight(last)
+        const totalHeights = ordered.reduce((sum, node) => sum + nodeHeight(node), 0)
+        const gap = (end - start - totalHeights) / (ordered.length - 1)
+        const yById = new Map<string, number>()
+        let cursor = start
+        for (const node of ordered) {
+          yById.set(node.id, cursor)
+          cursor += nodeHeight(node) + gap
+        }
+        setNodes((prev) =>
+          prev.map((node) =>
+            selected.has(node.id)
+              ? { ...node, position: { ...node.position, y: yById.get(node.id) ?? node.position.y } }
+              : node,
+          ),
+        )
+        return
+      }
 
       setNodes((prev) =>
         prev.map((node) => {
