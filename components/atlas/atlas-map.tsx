@@ -205,6 +205,13 @@ type UndoSnapshot = {
   edgeHandles: Record<string, { sourceHandle?: string; targetHandle?: string }>
 }
 
+type PersistedLayout = UndoSnapshot & {
+  version: 1
+  savedAt: string
+}
+
+const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v1'
+
 function MapInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
@@ -352,10 +359,78 @@ function MapInner() {
   const undoingRef = useRef(false)
   const nodesRef = useRef<Node[]>(nodes)
   const edgeHandlesRef = useRef(edgeHandles)
+  const persistenceLoadedRef = useRef(false)
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Refs vivos para que el callback de historial sea estable y no dispare efectos.
   nodesRef.current = nodes
   edgeHandlesRef.current = edgeHandles
+
+  // Recupera el layout editado en este navegador: posiciones, tamaños y puntos
+  // manuales de conexión. Se aplica una sola vez al montar el mapa.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw) as PersistedLayout
+        if (saved?.version === 1 && Array.isArray(saved.nodes)) {
+          const byId = new Map(saved.nodes.map((node) => [node.id, node]))
+          setNodes((prev) =>
+            prev.map((node) => {
+              const persisted = byId.get(node.id)
+              if (!persisted) return node
+              return {
+                ...node,
+                position: { ...persisted.position },
+                style: persisted.style ? { ...persisted.style } : node.style,
+              }
+            }),
+          )
+          if (saved.edgeHandles && typeof saved.edgeHandles === 'object') {
+            const restoredHandles = Object.fromEntries(
+              Object.entries(saved.edgeHandles).map(([id, handles]) => [id, { ...handles }]),
+            )
+            edgeHandlesRef.current = restoredHandles
+            setEdgeHandles(restoredHandles)
+          }
+        }
+      }
+    } catch {
+      // Un dato local corrupto no debe impedir cargar el mapa.
+    } finally {
+      persistenceLoadedRef.current = true
+    }
+  }, [setNodes])
+
+  // Autoguardado local con debounce para no escribir durante cada frame de drag/resize.
+  useEffect(() => {
+    if (!persistenceLoadedRef.current) return
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+
+    persistTimerRef.current = setTimeout(() => {
+      try {
+        const payload: PersistedLayout = {
+          version: 1,
+          savedAt: new Date().toISOString(),
+          nodes: nodes.map((node) => ({
+            id: node.id,
+            position: { ...node.position },
+            style: node.style ? { ...node.style } : undefined,
+          })),
+          edgeHandles: Object.fromEntries(
+            Object.entries(edgeHandles).map(([id, handles]) => [id, { ...handles }]),
+          ),
+        }
+        window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
+      } catch {
+        // Si el storage está bloqueado o lleno, el mapa sigue funcionando en memoria.
+      }
+    }, 300)
+
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    }
+  }, [nodes, edgeHandles])
 
   const pushUndoSnapshot = useCallback(() => {
     if (undoingRef.current) return
