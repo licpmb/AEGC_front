@@ -164,8 +164,38 @@ function alignToGrid(
   return positions
 }
 
+type MultiNodeAction =
+  | 'align-left'
+  | 'align-center-x'
+  | 'align-right'
+  | 'align-top'
+  | 'align-center-y'
+  | 'align-bottom'
+  | 'same-width'
+  | 'same-height'
+  | 'same-size'
+
+function nodeWidth(n: Node): number {
+  return (
+    n.measured?.width ??
+    (typeof n.width === 'number' ? n.width : undefined) ??
+    (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
+    190
+  )
+}
+
+function nodeHeight(n: Node): number {
+  return (
+    n.measured?.height ??
+    (typeof n.height === 'number' ? n.height : undefined) ??
+    (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
+    58
+  )
+}
+
 function MapInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [archimateFor, setArchimateFor] = useState<string | null>(null)
   const [endpointsView, setEndpointsView] = useState<{
@@ -312,11 +342,58 @@ function MapInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
+  const applyMultiNodeAction = useCallback(
+    (action: MultiNodeAction) => {
+      if (selectedNodeIds.length < 2) return
+      const reference = nodes.find((n) => n.id === selectedNodeIds[0])
+      if (!reference) return
+
+      const refWidth = nodeWidth(reference)
+      const refHeight = nodeHeight(reference)
+      const refCenterX = reference.position.x + refWidth / 2
+      const refCenterY = reference.position.y + refHeight / 2
+      const refRight = reference.position.x + refWidth
+      const refBottom = reference.position.y + refHeight
+      const selected = new Set(selectedNodeIds)
+
+      setNodes((prev) =>
+        prev.map((node) => {
+          if (!selected.has(node.id) || node.id === reference.id) return node
+          const width = nodeWidth(node)
+          const height = nodeHeight(node)
+
+          if (action === 'same-width') {
+            return { ...node, style: { ...node.style, width: refWidth } }
+          }
+          if (action === 'same-height') {
+            return { ...node, style: { ...node.style, height: refHeight } }
+          }
+          if (action === 'same-size') {
+            return { ...node, style: { ...node.style, width: refWidth, height: refHeight } }
+          }
+
+          let x = node.position.x
+          let y = node.position.y
+          if (action === 'align-left') x = reference.position.x
+          if (action === 'align-center-x') x = refCenterX - width / 2
+          if (action === 'align-right') x = refRight - width
+          if (action === 'align-top') y = reference.position.y
+          if (action === 'align-center-y') y = refCenterY - height / 2
+          if (action === 'align-bottom') y = refBottom - height
+
+          return { ...node, position: { x, y } }
+        }),
+      )
+    },
+    [nodes, selectedNodeIds, setNodes],
+  )
+
   const autoArrange = useCallback(() => {
     const positions = alignToGrid(nodes, visibleIds)
     if (!positions.size) return
 
     setSelectedId(null)
+    setSelectedNodeIds([])
     setSelectedEdgeId(null)
     setNodes((prev) =>
       prev.map((node) => {
@@ -348,7 +425,7 @@ function MapInner() {
         return {
           ...rf,
           hidden: !visible,
-          selected: node.id === selectedId,
+          selected: selectedNodeIds.includes(node.id),
           sourcePosition: o === 'v' ? Position.Bottom : Position.Right,
           targetPosition: o === 'v' ? Position.Top : Position.Left,
           data: {
@@ -372,6 +449,7 @@ function MapInner() {
     visibleIds,
     focusSet,
     selectedId,
+    selectedNodeIds,
     issueStats,
     filters.showIssues,
     collapsed,
@@ -496,6 +574,7 @@ function MapInner() {
   // origen/destino. Doble click conserva el acceso al catálogo de endpoints.
   const handleEdgeClick = useCallback((_: unknown, edge: Edge) => {
     setSelectedId(null)
+    setSelectedNodeIds([])
     setSelectedEdgeId(edge.id)
   }, [])
 
@@ -515,9 +594,12 @@ function MapInner() {
           onChange={setFilters}
           onFit={() => {
             setSelectedId(null)
+            setSelectedNodeIds([])
             void fitView({ duration: 500, padding: 0.15 })
           }}
           onArrange={autoArrange}
+          selectionCount={selectedNodeIds.length}
+          onMultiNodeAction={applyMultiNodeAction}
           nodeCount={visibleIds.size}
           totalCount={ATLAS_NODES.length}
         />
@@ -528,16 +610,24 @@ function MapInner() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
-          onNodeClick={(_, n) => {
+          onNodeClick={(event, n) => {
             setSelectedEdgeId(null)
+            const additive = event.shiftKey || event.ctrlKey || event.metaKey
+            setSelectedNodeIds((prev) => {
+              if (!additive) return [n.id]
+              if (prev.includes(n.id)) return prev.filter((id) => id !== n.id)
+              return [...prev, n.id]
+            })
             handleSelect(n.id)
           }}
           onEdgeClick={handleEdgeClick}
           onEdgeDoubleClick={handleEdgeDoubleClick}
           onReconnect={onReconnect}
           edgesReconnectable
+          multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
           onPaneClick={() => {
             setSelectedId(null)
+            setSelectedNodeIds([])
             setSelectedEdgeId(null)
           }}
           onInit={(instance) => {
