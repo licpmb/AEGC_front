@@ -204,6 +204,16 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const background = o.fillColor || (group ? 'var(--archi-group)' : fill(o.type))
     const textColor = o.fontColor || (group ? 'var(--foreground)' : '#1b3145')
     const alt = o.figureType === '1'
+    const isNote = /^Note$/i.test(o.type)
+    const isGrouping = /Grouping|DiagramModelGroup/i.test(o.type)
+    const isJunction = /Junction/i.test(o.type)
+    const isArtifact = /Artifact/i.test(o.type)
+    const isData = /DataObject/i.test(o.type)
+    const isNode = /^Node$/i.test(o.type)
+    const isDevice = /Device/i.test(o.type)
+    const isService = /Service/i.test(o.type)
+    const isEvent = /Event/i.test(o.type)
+    const isComponent = /ApplicationComponent/i.test(o.type)
     const font = fontFromArchi(o.font)
     const defaultTopLeft = group || isNote
     const alignCode = o.textAlignment ?? (defaultTopLeft ? '1' : '2')
@@ -216,16 +226,6 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const baseY = positionCode === '2' ? o.y + o.height - 7 - (lines.length - 1) * lineHeight :
       positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * lineHeight) / 2 + font.size * .35 : o.y + font.size + 5
     const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1 }
-    const isNote = /^Note$/i.test(o.type)
-    const isGrouping = /Grouping|DiagramModelGroup/i.test(o.type)
-    const isJunction = /Junction/i.test(o.type)
-    const isArtifact = /Artifact/i.test(o.type)
-    const isData = /DataObject/i.test(o.type)
-    const isNode = /^Node$/i.test(o.type)
-    const isDevice = /Device/i.test(o.type)
-    const isService = /Service/i.test(o.type)
-    const isEvent = /Event/i.test(o.type)
-    const isComponent = /ApplicationComponent/i.test(o.type)
 
     return <g key={o.id} tabIndex={0} role="button" aria-label={`${o.label}, ${o.type}`} onClick={() => { setSelected(o); setSelectedConnectionId(null) }} onPointerDown={(e) => startMove(e, o)} onPointerMove={move} onPointerUp={endMove} onLostPointerCapture={endMove} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(o); setSelectedConnectionId(null) } }} style={{cursor:group ? 'pointer' : 'grab',touchAction:'none',opacity: faded ? .35 : 1}}>
       <title>{`${o.label} · ${o.type}${o.elementId ? ` · ${o.elementId}` : ''} · figura ${o.id}`}</title>
