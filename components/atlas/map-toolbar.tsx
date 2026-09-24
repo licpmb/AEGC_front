@@ -17,10 +17,53 @@ export type MapFilters = {
   onlyWithIssues: boolean
 }
 
+export type MultiNodeAction =
+  | 'align-left'
+  | 'align-center-x'
+  | 'align-right'
+  | 'align-top'
+  | 'align-center-y'
+  | 'align-bottom'
+  | 'same-width'
+  | 'same-height'
+  | 'same-size'
+
 const DIRECTIONS: { key: MapFilters['direction']; label: string }[] = [
   { key: 'todos', label: 'Todo el flujo' },
   { key: 'extraccion', label: 'Extracción' },
   { key: 'inyeccion', label: 'Inyección' },
+]
+
+function ToolGlyph({
+  kind,
+}: {
+  kind:
+    | 'left' | 'center-x' | 'right'
+    | 'top' | 'center-y' | 'bottom'
+    | 'width' | 'height' | 'size'
+}) {
+  const common = { stroke: 'currentColor', strokeWidth: 1.4, fill: 'none' }
+  if (kind === 'left') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M3 2v14M5 5h9M5 9h6M5 13h8" {...common}/></svg>
+  if (kind === 'center-x') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M9 2v14M4 5h10M6 9h6M5 13h8" {...common}/></svg>
+  if (kind === 'right') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M15 2v14M4 5h9M7 9h6M5 13h8" {...common}/></svg>
+  if (kind === 'top') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 3h14M5 5v9M9 5v6M13 5v8" {...common}/></svg>
+  if (kind === 'center-y') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 9h14M5 4v10M9 6v6M13 5v8" {...common}/></svg>
+  if (kind === 'bottom') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 15h14M5 4v9M9 7v6M13 5v8" {...common}/></svg>
+  if (kind === 'width') return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="3" y="5" width="12" height="8" {...common}/><path d="M1.5 9h3M13.5 9h3M2.5 8l-1 1 1 1M15.5 8l1 1-1 1" {...common}/></svg>
+  if (kind === 'height') return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="5" y="3" width="8" height="12" {...common}/><path d="M9 1.5v3M9 13.5v3M8 2.5l1-1 1 1M8 15.5l1 1 1-1" {...common}/></svg>
+  return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="4" y="4" width="10" height="10" {...common}/><path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" {...common}/></svg>
+}
+
+const MULTI_TOOLS: Array<{ action: MultiNodeAction; title: string; glyph: Parameters<typeof ToolGlyph>[0]['kind'] }> = [
+  { action: 'align-left', title: 'Alinear a la izquierda', glyph: 'left' },
+  { action: 'align-center-x', title: 'Alinear centros verticales', glyph: 'center-x' },
+  { action: 'align-right', title: 'Alinear a la derecha', glyph: 'right' },
+  { action: 'align-top', title: 'Alinear arriba', glyph: 'top' },
+  { action: 'align-center-y', title: 'Alinear centros horizontales', glyph: 'center-y' },
+  { action: 'align-bottom', title: 'Alinear abajo', glyph: 'bottom' },
+  { action: 'same-width', title: 'Mismo ancho que el primero', glyph: 'width' },
+  { action: 'same-height', title: 'Mismo alto que el primero', glyph: 'height' },
+  { action: 'same-size', title: 'Mismo tamaño que el primero', glyph: 'size' },
 ]
 
 export function MapToolbar({
@@ -28,6 +71,8 @@ export function MapToolbar({
   onChange,
   onFit,
   onArrange,
+  selectionCount,
+  onMultiNodeAction,
   nodeCount,
   totalCount,
 }: {
@@ -35,6 +80,8 @@ export function MapToolbar({
   onChange: (f: MapFilters) => void
   onFit: () => void
   onArrange: () => void
+  selectionCount: number
+  onMultiNodeAction: (action: MultiNodeAction) => void
   nodeCount: number
   totalCount: number
 }) {
@@ -107,25 +154,48 @@ export function MapToolbar({
           Solo con issues
         </Button>
 
+        {selectionCount >= 2 && (
+          <div
+            className="map-toolbar-surface flex items-center overflow-hidden rounded-md border backdrop-blur-sm"
+            aria-label="Alinear y redimensionar selección"
+          >
+            {MULTI_TOOLS.map((tool, index) => (
+              <button
+                key={tool.action}
+                type="button"
+                onClick={() => onMultiNodeAction(tool.action)}
+                title={tool.title}
+                className={cn(
+                  'flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                  index > 0 && 'border-l border-border',
+                )}
+              >
+                <ToolGlyph kind={tool.glyph} />
+              </button>
+            ))}
+          </div>
+        )}
+
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onArrange}
-          title="Ordenar automáticamente en cuadrícula, priorizando el flujo de izquierda a derecha"
-          className="map-toolbar-surface h-9 backdrop-blur-sm"
+          title="Ordenar en cuadrícula respetando la posición actual"
+          aria-label="Ordenar en cuadrícula"
+          className="map-toolbar-surface h-9 w-9 backdrop-blur-sm"
         >
-          <LayoutGrid size={13} />
-          Ordenar
+          <LayoutGrid size={15} />
         </Button>
 
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={onFit}
-          className="map-toolbar-surface h-9 backdrop-blur-sm"
+          title="Encuadrar todo el mapa"
+          aria-label="Encuadrar todo el mapa"
+          className="map-toolbar-surface h-9 w-9 backdrop-blur-sm"
         >
-          <Maximize2 size={13} />
-          Encuadrar
+          <Maximize2 size={15} />
         </Button>
 
         <span className="map-toolbar-surface ml-auto rounded-md border px-2.5 py-2 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
