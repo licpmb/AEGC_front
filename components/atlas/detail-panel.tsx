@@ -42,6 +42,7 @@ const HEALTH_COLOR: Record<string, string> = {
   ok: 'var(--chart-4)',
   degradado: 'var(--chart-1)',
   caido: 'var(--destructive)',
+  sin_dato: 'var(--flow-neutral)',
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
