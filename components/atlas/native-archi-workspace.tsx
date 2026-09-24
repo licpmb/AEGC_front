@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, Download, FileUp, Folder, Maximize2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, ZoomIn, ZoomOut } from 'lucide-react'
 import { connectionPoints, parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
 import { exportArchiChanges, loadArchiDraft, saveArchiDraft, type ArchiEdit } from '@/lib/archi-universe'
@@ -173,11 +173,15 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   }, [model?.name, viewList])
 
   useEffect(() => {
-    if (!model) return
-    const paths = new Set<string>()
-    for (const v of model.views) v.folderPath.forEach((_, index) => paths.add(v.folderPath.slice(0, index + 1).join('/')))
-    setExpandedFolders(paths)
-  }, [model?.id])
+    if (!model || !viewId) return
+    const current = model.views.find((item) => item.id === viewId)
+    if (!current) return
+    setExpandedFolders((prev) => {
+      const next = new Set(prev)
+      current.folderPath.forEach((_, index) => next.add(current.folderPath.slice(0, index + 1).join('/')))
+      return next
+    })
+  }, [model?.id, viewId])
 
   const fitCurrentView = useCallback(() => {
     const host = canvasRef.current
@@ -384,13 +388,23 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     </g>
   }
 
+  const routeMap = useMemo(() => {
+    const drafts = new Map(edits
+      .filter((e): e is Extract<ArchiEdit, { kind: 'routeConnection' }> => e.kind === 'routeConnection' && e.viewId === viewId)
+      .map((e) => [e.connectionId, e] as const))
+    const routes = new Map<string, Array<{ x: number; y: number }>>()
+    for (const c of connections) {
+      const source = byId.get(c.source), target = byId.get(c.target)
+      if (!source || !target) continue
+      const original = connectionPoints(c, source, target)
+      const draft = drafts.get(c.id)
+      routes.set(c.id, draft ? [original[0], ...draft.points, original.at(-1)!] : original)
+    }
+    return routes
+  }, [connections, byId, edits, viewId])
+
   function routeFor(connectionId: string) {
-    const c = connections.find((item) => item.id === connectionId)
-    const source = c && byId.get(c.source), target = c && byId.get(c.target)
-    if (!c || !source || !target) return []
-    const draft = edits.find((e) => e.kind === 'routeConnection' && e.viewId === viewId && e.connectionId === connectionId)
-    const original = connectionPoints(c, source, target)
-    return draft?.kind === 'routeConnection' ? [original[0], ...draft.points, original.at(-1)!] : original
+    return routeMap.get(connectionId) ?? []
   }
   function updateRoute(connectionId: string, points: Array<{ x: number; y: number }>) {
     if (!viewId) return
@@ -451,7 +465,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
         </div>
         {!leftCompact && <div className="min-h-0 flex-1 overflow-auto px-1 py-1.5">
           {(() => {
-            const renderNode = (node: ViewTreeNode, depth = 0): React.ReactNode => <>
+            const renderNode = (node: ViewTreeNode, depth = 0): ReactNode => <>
               {node.folders.map((folder) => {
                 const open = viewQuery.trim() ? true : expandedFolders.has(folder.path)
                 return <div key={folder.path}>
