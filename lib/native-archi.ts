@@ -50,6 +50,8 @@ export interface DiagramConnection {
   fontColor?: string
   font?: string
   textPosition?: string
+  textRelativePosition?: string
+  nameVisible?: boolean
   bendpoints: Array<{ startX: number; startY: number; endX: number; endY: number }>
 }
 
@@ -75,6 +77,44 @@ export interface NativeModel {
  * Archi stores two offsets for every bendpoint and a weight based on its
  * position in the route. The absolute point is the weighted interpolation
  * of the source-relative and target-relative coordinates. */
+function rectangularAnchor(o: DiagramObject, point: { x: number; y: number }) {
+  const cx = o.x + o.width / 2, cy = o.y + o.height / 2
+  const dx = point.x - cx, dy = point.y - cy
+  const factor = Math.max(Math.abs(dx) / Math.max(o.width / 2, 1), Math.abs(dy) / Math.max(o.height / 2, 1), 1e-6)
+  return { x: cx + dx / factor, y: cy + dy / factor }
+}
+
+function ellipseAnchor(o: DiagramObject, point: { x: number; y: number }) {
+  const cx = o.x + o.width / 2, cy = o.y + o.height / 2
+  const rx = Math.max(o.width / 2, 1), ry = Math.max(o.height / 2, 1)
+  const dx = point.x - cx, dy = point.y - cy
+  const scale = 1 / Math.max(Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)), 1e-6)
+  return { x: cx + dx * scale, y: cy + dy * scale }
+}
+
+function roundedRectangleAnchor(o: DiagramObject, point: { x: number; y: number }) {
+  // Draw2D's RoundedRectangleAnchor follows the rounded outline. The straight
+  // rectangle result is exact outside the corner radius; near a corner, project
+  // onto the quarter ellipse used by Archi's rounded delegates.
+  const hit = rectangularAnchor(o, point)
+  const radiusX = Math.min(o.height / 2, o.width * .4)
+  const radiusY = Math.min(o.height / 2, radiusX)
+  const left = o.x + radiusX, right = o.x + o.width - radiusX
+  const top = o.y + radiusY, bottom = o.y + o.height - radiusY
+  if (hit.x >= left && hit.x <= right || hit.y >= top && hit.y <= bottom) return hit
+  const ccx = hit.x < left ? left : right
+  const ccy = hit.y < top ? top : bottom
+  const dx = point.x - ccx, dy = point.y - ccy
+  const k = 1 / Math.max(Math.sqrt((dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY)), 1e-6)
+  return { x: ccx + dx * k, y: ccy + dy * k }
+}
+
+function archiAnchor(o: DiagramObject, point: { x: number; y: number }) {
+  if (/Junction/i.test(o.type)) return ellipseAnchor(o, point)
+  if (/Service|Process|Function|Interaction/i.test(o.type) && o.figureType !== '1') return roundedRectangleAnchor(o, point)
+  return rectangularAnchor(o, point)
+}
+
 export function connectionPoints(connection: DiagramConnection, source: DiagramObject, target: DiagramObject) {
   const sx = source.x + source.width / 2, sy = source.y + source.height / 2
   const tx = target.x + target.width / 2, ty = target.y + target.height / 2
@@ -88,15 +128,9 @@ export function connectionPoints(connection: DiagramConnection, source: DiagramO
       y: startY * (1 - weight) + endY * weight,
     }
   })
-  const onBorder = (o: DiagramObject, point: { x: number; y: number }) => {
-    const cx = o.x + o.width / 2, cy = o.y + o.height / 2
-    const dx = point.x - cx, dy = point.y - cy
-    const factor = Math.max(Math.abs(dx) / Math.max(o.width / 2, 1), Math.abs(dy) / Math.max(o.height / 2, 1), 1e-6)
-    return { x: cx + dx / factor, y: cy + dy / factor }
-  }
   const firstGuide = bends[0] ?? { x: tx, y: ty }
   const lastGuide = bends.at(-1) ?? { x: sx, y: sy }
-  return [onBorder(source, firstGuide), ...bends, onBorder(target, lastGuide)]
+  return [archiAnchor(source, firstGuide), ...bends, archiAnchor(target, lastGuide)]
 }
 
 function children(parent: Element, name: string): Element[] {
@@ -207,6 +241,8 @@ export function parseNativeArchi(source: string): NativeModel {
             fontColor: line.getAttribute('fontColor') ?? undefined,
             font: line.getAttribute('font') ?? undefined,
             textPosition: line.getAttribute('textPosition') ?? undefined,
+            textRelativePosition: children(line, 'feature').find((f) => f.getAttribute('name') === 'textRelativePosition')?.getAttribute('value') ?? undefined,
+            nameVisible: children(line, 'feature').find((f) => f.getAttribute('name') === 'nameVisible')?.getAttribute('value') !== 'false',
             bendpoints: children(line, 'bendpoint').map((point) => ({
               startX: numeric(point.getAttribute('startX'), 0), startY: numeric(point.getAttribute('startY'), 0),
               endX: numeric(point.getAttribute('endX'), 0), endY: numeric(point.getAttribute('endY'), 0),
