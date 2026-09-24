@@ -17,7 +17,7 @@ export type NodeStatus = 'prod' | 'staging' | 'dev' | 'deprecated'
 
 export type NodeGroup = 'core' | 'plataforma' | 'integracion' | 'aplicacion' | 'datos' | 'externo'
 
-export type FlowDirection = 'extraccion' | 'inyeccion' | 'bidireccional'
+export type FlowDirection = 'extraccion' | 'inyeccion' | 'bidireccional' | 'sin_definir'
 
 /** País donde vive el desarrollo. Sin país = compartido / regional. */
 export type CountryCode = 'AR' | 'CL' | 'UY'
@@ -166,8 +166,8 @@ export interface AtlasEdge {
   target: string
   label?: string
   direction: FlowDirection
-  protocol: 'IDoc' | 'OData' | 'REST' | 'SOAP' | 'JDBC' | 'Batch' | 'CDC' | 'SFTP' | 'Manual'
-  health: 'ok' | 'degradado' | 'caido'
+  protocol: 'IDoc' | 'OData' | 'REST' | 'SOAP' | 'JDBC' | 'Batch' | 'CDC' | 'SFTP' | 'Manual' | 'Por definir'
+  health: 'ok' | 'degradado' | 'caido' | 'sin_dato'
 }
 
 export const KIND_META: Record<
