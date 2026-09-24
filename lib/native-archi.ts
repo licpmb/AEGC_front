@@ -59,6 +59,7 @@ export interface NativeView {
   id: string
   name: string
   type: string
+  folderPath: string[]
   objects: DiagramObject[]
   connections: DiagramConnection[]
   width: number
@@ -252,7 +253,16 @@ export function parseNativeArchi(source: string): NativeModel {
       }
     }
     walk(el, 0, 0, 0)
-    views.push({ id, name: el.getAttribute('name') ?? '(sin nombre)', type: xmlType(el), objects, connections,
+    const folderPath: string[] = []
+    let ancestor = el.parentElement
+    while (ancestor && ancestor !== root) {
+      if (ancestor.localName === 'folder') {
+        const name = ancestor.getAttribute('name')?.trim()
+        if (name) folderPath.unshift(name)
+      }
+      ancestor = ancestor.parentElement
+    }
+    views.push({ id, name: el.getAttribute('name') ?? '(sin nombre)', type: xmlType(el), folderPath, objects, connections,
       width: Math.max(900, ...objects.map((o) => o.x + o.width)) + 50,
       height: Math.max(550, ...objects.map((o) => o.y + o.height)) + 50 })
   }
