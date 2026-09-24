@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -196,6 +196,15 @@ function nodeHeight(n: Node): number {
   )
 }
 
+type UndoSnapshot = {
+  nodes: Array<{
+    id: string
+    position: { x: number; y: number }
+    style?: Node['style']
+  }>
+  edgeHandles: Record<string, { sourceHandle?: string; targetHandle?: string }>
+}
+
 function MapInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
@@ -339,10 +348,79 @@ function MapInner() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const undoStackRef = useRef<UndoSnapshot[]>([])
+  const undoingRef = useRef(false)
+
+  const pushUndoSnapshot = useCallback(() => {
+    if (undoingRef.current) return
+    const snapshot: UndoSnapshot = {
+      nodes: nodes.map((node) => ({
+        id: node.id,
+        position: { ...node.position },
+        style: node.style ? { ...node.style } : undefined,
+      })),
+      edgeHandles: Object.fromEntries(
+        Object.entries(edgeHandles).map(([id, handles]) => [id, { ...handles }]),
+      ),
+    }
+
+    const stack = undoStackRef.current
+    const prev = stack[stack.length - 1]
+    const serialized = JSON.stringify(snapshot)
+    if (prev && JSON.stringify(prev) === serialized) return
+    stack.push(snapshot)
+    if (stack.length > 50) stack.shift()
+  }, [nodes, edgeHandles])
+
+  const undo = useCallback(() => {
+    const snapshot = undoStackRef.current.pop()
+    if (!snapshot) return
+
+    undoingRef.current = true
+    const byId = new Map(snapshot.nodes.map((node) => [node.id, node]))
+    setNodes((prev) =>
+      prev.map((node) => {
+        const saved = byId.get(node.id)
+        if (!saved) return node
+        return {
+          ...node,
+          position: { ...saved.position },
+          style: saved.style ? { ...saved.style } : undefined,
+        }
+      }),
+    )
+    setEdgeHandles(
+      Object.fromEntries(
+        Object.entries(snapshot.edgeHandles).map(([id, handles]) => [id, { ...handles }]),
+      ),
+    )
+    requestAnimationFrame(() => {
+      undoingRef.current = false
+    })
+  }, [setNodes])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) return
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        undo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undo])
 
   const applyMultiNodeAction = useCallback(
     (action: MultiNodeAction) => {
       if (selectedNodeIds.length < 2) return
+      pushUndoSnapshot()
 
       const selectedNodes = nodes.filter((n) => selectedNodeIds.includes(n.id))
       if (selectedNodes.length < 2) return
@@ -444,10 +522,11 @@ function MapInner() {
         }),
       )
     },
-    [nodes, selectedNodeIds, setNodes],
+    [nodes, selectedNodeIds, setNodes, pushUndoSnapshot],
   )
 
   const autoArrange = useCallback(() => {
+    pushUndoSnapshot()
     const positions = alignToGrid(nodes, visibleIds)
     if (!positions.size) return
 
@@ -464,7 +543,7 @@ function MapInner() {
     requestAnimationFrame(() => {
       void fitView({ duration: 400, padding: 0.15 })
     })
-  }, [nodes, visibleIds, setNodes, fitView])
+  }, [nodes, visibleIds, setNodes, fitView, pushUndoSnapshot])
 
   // Clear selection if the selected node becomes hidden
   useEffect(() => {
@@ -494,6 +573,7 @@ function MapInner() {
             collapsed: collapsed.has(node.id),
             hiddenChildren: collapsed.has(node.id) ? descendantCount(node.id) : 0,
             onToggleCollapse: toggleCollapse,
+            onBeforeResize: pushUndoSnapshot,
           } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
         }
       }),
@@ -507,6 +587,7 @@ function MapInner() {
     collapsed,
     setNodes,
     toggleCollapse,
+    pushUndoSnapshot,
   ])
 
   useEffect(() => {
@@ -608,6 +689,7 @@ function MapInner() {
   // manteniendo los mismos nodos de origen y destino.
   const onReconnect = useCallback((oldEdge: Edge, newConn: Connection) => {
     if (newConn.source !== oldEdge.source || newConn.target !== oldEdge.target) return
+    pushUndoSnapshot()
     setEdgeHandles((prev) => ({
       ...prev,
       [oldEdge.id]: {
@@ -618,7 +700,7 @@ function MapInner() {
       },
     }))
     setSelectedEdgeId(oldEdge.id)
-  }, [])
+  }, [pushUndoSnapshot])
 
   // Un click selecciona la relación y habilita el cambio manual del punto de
   // origen/destino. Doble click conserva el acceso al catálogo de endpoints.
@@ -659,6 +741,7 @@ function MapInner() {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onNodeDragStart={() => pushUndoSnapshot()}
           nodeTypes={nodeTypes}
           onNodeClick={(event, n) => {
             setSelectedEdgeId(null)
