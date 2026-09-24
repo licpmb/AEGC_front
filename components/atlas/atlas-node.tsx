@@ -72,7 +72,6 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
   const meta = KIND_META[node.kind]
   const Icon = ICONS[node.kind]
   const isHub = node.kind === 'erp' || node.kind === 'middleware'
-  const isInterfaceContainer = node.kind === 'interface' && Boolean(hasChildren)
   const country = node.country ? COUNTRY_META[node.country] : null
   const group = meta.group
   const surface = {
@@ -106,15 +105,12 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
       />
       <div
         className={cn(
-          'group relative h-full w-full overflow-hidden rounded-lg border transition-[opacity,border-color] duration-150',
-          isInterfaceContainer ? 'px-4 py-3' : 'flex items-center gap-3',
-          !isInterfaceContainer && (isHub ? 'px-4 py-3.5' : 'px-3 py-2.5'),
+          'group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border transition-[opacity,border-color] duration-150',
+          isHub ? 'px-4 py-3.5' : 'px-3 py-2.5',
           dimmed && 'opacity-20 saturate-0',
         )}
         style={{
-          background: isInterfaceContainer
-            ? 'color-mix(in oklab, var(--map-node-aplicacion-bg) 35%, transparent)'
-            : surface.background,
+          background: surface.background,
           color: surface.title,
           borderColor: selected || focused ? meta.color : heat?.ring ?? surface.border,
           boxShadow:
@@ -148,7 +144,7 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
           </span>
         ))}
 
-        {!isInterfaceContainer && <span
+        <span
           className="flex shrink-0 items-center justify-center rounded-md"
           style={{
             width: isHub ? 34 : 28,
@@ -158,9 +154,9 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
           }}
         >
           <Icon size={isHub ? 18 : 15} strokeWidth={2} />
-        </span>}
+        </span>
 
-        <div className={cn('min-w-0', isInterfaceContainer ? 'pr-16' : 'flex-1')}>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <p
               className={cn(
@@ -198,19 +194,13 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
             )}
           </div>
           <p
-            className={cn('truncate font-mono text-[10px] font-medium uppercase tracking-wider', isInterfaceContainer && 'mt-0.5')}
+            className="truncate font-mono text-[10px] font-medium uppercase tracking-wider"
             style={{ color: surface.meta }}
           >
             {meta.label}
             {node.gitlab ? ' · git' : ''}
           </p>
         </div>
-
-        {isInterfaceContainer && (
-          <span className="absolute right-3 top-3 rounded border border-[var(--map-node-aplicacion-border)] bg-background/70 px-2 py-1 font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-            Componentes
-          </span>
-        )}
 
         {showIssues && openIssues > 0 && (
           <span
@@ -226,7 +216,7 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
           </span>
         )}
 
-        {hasChildren && !isInterfaceContainer && (
+        {hasChildren && (
           <button
             onClick={(e) => {
               e.stopPropagation()
