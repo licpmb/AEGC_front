@@ -53,133 +53,134 @@
 .dark {
   color-scheme: dark;
 
-  /* Technology dark mode: deep slate, never pure black. */
-  --background: #18212B;
-  --foreground: #F3F7FA;
-  --card: #202B36;
-  --card-foreground: #F3F7FA;
-  --popover: #24313D;
-  --popover-foreground: #F3F7FA;
+  /* Core technology palette */
+  --background: #0F1722;
+  --foreground: #F7FAFC;
+  --card: #182433;
+  --card-foreground: #F7FAFC;
+  --popover: #1B2838;
+  --popover-foreground: #F7FAFC;
 
-  --primary: #5B9CE6;
-  --primary-foreground: #0E1720;
-  --secondary: #2A3744;
-  --secondary-foreground: #EEF3F7;
-  --muted: #26323E;
-  --muted-foreground: #A7B3BF;
-  --accent: #304050;
-  --accent-foreground: #F4F8FB;
-  --destructive: #E2686E;
+  --primary: #4DA3FF;
+  --primary-foreground: #07111C;
+  --secondary: #223247;
+  --secondary-foreground: #F1F5F9;
+  --muted: #1D2A3A;
+  --muted-foreground: #B6C2CF;
+  --accent: #263A50;
+  --accent-foreground: #FFFFFF;
+  --destructive: #F0646A;
 
-  --border: #344352;
-  --input: #3A4958;
-  --ring: #6AA6E8;
+  --border: #34465B;
+  --input: #41556B;
+  --ring: #58A8F6;
 
-  --chart-1: #E1B85B;
-  --chart-2: #A78BCA;
-  --chart-3: #6FA9E2;
-  --chart-4: #6EB7AD;
-  --chart-5: #DF6F75;
+  --chart-1: #E4B84F;
+  --chart-2: #B18AE0;
+  --chart-3: #67A9EA;
+  --chart-4: #67B7AC;
+  --chart-5: #EF6D73;
 
   --radius: 0.5rem;
-  --sidebar: #1D2732;
-  --sidebar-foreground: #F3F7FA;
-  --sidebar-primary: #5B9CE6;
-  --sidebar-primary-foreground: #0E1720;
-  --sidebar-accent: #2A3744;
-  --sidebar-accent-foreground: #F4F8FB;
-  --sidebar-border: #344352;
-  --sidebar-ring: #6AA6E8;
 
-  --archi-canvas: #1D2731;
-  --archi-group: #263746;
-  --archi-line: #C2CFDA;
-  --archi-flow: #6DB5D9;
+  --sidebar: #121C29;
+  --sidebar-foreground: #F7FAFC;
+  --sidebar-primary: #4DA3FF;
+  --sidebar-primary-foreground: #07111C;
+  --sidebar-accent: #223247;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #34465B;
+  --sidebar-ring: #58A8F6;
 
-  --map-node-core-bg: #4B4229;
-  --map-node-integracion-bg: #42384F;
-  --map-node-aplicacion-bg: #304A61;
-  --map-node-datos-bg: #2F514E;
-  --map-node-core-border: #D5AE55;
-  --map-node-integracion-border: #9F86BF;
-  --map-node-aplicacion-border: #70A5D5;
-  --map-node-datos-border: #6FB0A7;
-  --map-node-title: #F8FAFC;
-  --map-node-meta: #D6DFE7;
-  --map-node-badge-bg: rgba(255, 255, 255, 0.08);
-  --map-node-badge-border: rgba(255, 255, 255, 0.17);
+  --archi-canvas: #151F2B;
+  --archi-group: #1E3040;
+  --archi-line: #CFD8E3;
+  --archi-flow: #63B3D7;
 
-  --flow-injection: #6EA7DC;
-  --flow-extraction: #6DB0A6;
-  --flow-bidirectional: #A08AC0;
-  --flow-neutral: #7D8995;
-  --map-grid: #3A4754;
+  /* Map domain surfaces — clearly distinct from canvas */
+  --map-node-core-bg: #5A461C;
+  --map-node-integracion-bg: #493561;
+  --map-node-aplicacion-bg: #285379;
+  --map-node-datos-bg: #275A54;
+  --map-node-core-border: #E1B54C;
+  --map-node-integracion-border: #B38BDA;
+  --map-node-aplicacion-border: #68A7E3;
+  --map-node-datos-border: #68B8AC;
+  --map-node-title: #FFFFFF;
+  --map-node-meta: #E4EBF2;
+  --map-node-badge-bg: rgba(255,255,255,.10);
+  --map-node-badge-border: rgba(255,255,255,.23);
+
+  --flow-injection: #66A8E5;
+  --flow-extraction: #64B1A6;
+  --flow-bidirectional: #A98BC8;
+  --flow-neutral: #7B8795;
+  --map-grid: #344154;
 }
 
 .light {
   color-scheme: light;
 
-  /* Technology light mode: bright neutral canvas with cool-blue structure. */
-  --background: #F6F8FB;
-  --foreground: #17212B;
+  /* Bright technology palette */
+  --background: #F3F6FA;
+  --foreground: #182230;
   --card: #FFFFFF;
-  --card-foreground: #17212B;
+  --card-foreground: #182230;
   --popover: #FFFFFF;
-  --popover-foreground: #17212B;
+  --popover-foreground: #182230;
 
-  --primary: #4C88C7;
+  --primary: #2F80D0;
   --primary-foreground: #FFFFFF;
-  --secondary: #EEF2F6;
-  --secondary-foreground: #26323D;
-  --muted: #EDF1F5;
-  --muted-foreground: #667483;
-  --accent: #E7EDF4;
-  --accent-foreground: #22303D;
-  --destructive: #C94F58;
+  --secondary: #E9EFF6;
+  --secondary-foreground: #263443;
+  --muted: #EAF0F6;
+  --muted-foreground: #617083;
+  --accent: #DDE8F3;
+  --accent-foreground: #203040;
+  --destructive: #D44F58;
 
-  --border: #D6DEE8;
-  --input: #CCD6E1;
-  --ring: #6B9BC8;
+  --border: #C9D4E0;
+  --input: #BBC9D8;
+  --ring: #4B91D4;
 
-  /* Same semantic domains in both themes, adapted for luminance. */
-  --chart-1: #D7A846;
-  --chart-2: #9678B6;
-  --chart-3: #5F96C7;
-  --chart-4: #559A91;
-  --chart-5: #CA5B62;
+  --chart-1: #C99A2C;
+  --chart-2: #8B63B4;
+  --chart-3: #3D86C8;
+  --chart-4: #378F84;
+  --chart-5: #D35860;
 
-  --sidebar: #F2F5F9;
-  --sidebar-foreground: #17212B;
-  --sidebar-primary: #4C88C7;
+  --sidebar: #F8FAFC;
+  --sidebar-foreground: #182230;
+  --sidebar-primary: #2F80D0;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E6ECF3;
-  --sidebar-accent-foreground: #22303D;
-  --sidebar-border: #D6DEE8;
-  --sidebar-ring: #6B9BC8;
+  --sidebar-accent: #E7EEF6;
+  --sidebar-accent-foreground: #203040;
+  --sidebar-border: #C9D4E0;
+  --sidebar-ring: #4B91D4;
 
-  --archi-canvas: #FCFDFE;
-  --archi-group: #EEF3F7;
-  --archi-line: #4B5967;
-  --archi-flow: #4D89A7;
+  --archi-canvas: #FFFFFF;
+  --archi-group: #F0F4F8;
+  --archi-line: #47586A;
+  --archi-flow: #3E829F;
 
-  --map-node-core-bg: #FFF3D6;
-  --map-node-integracion-bg: #F1EAFA;
-  --map-node-aplicacion-bg: #E8F2FC;
-  --map-node-datos-bg: #E7F5F2;
-  --map-node-core-border: #D5A84A;
-  --map-node-integracion-border: #9C7DB9;
-  --map-node-aplicacion-border: #6699C8;
-  --map-node-datos-border: #5D9F96;
-  --map-node-title: #1C2732;
-  --map-node-meta: #586777;
-  --map-node-badge-bg: rgba(255, 255, 255, 0.72);
-  --map-node-badge-border: rgba(72, 88, 104, 0.18);
+  --map-node-core-bg: #FFF0C8;
+  --map-node-integracion-bg: #EEE3F8;
+  --map-node-aplicacion-bg: #E0EEFB;
+  --map-node-datos-bg: #DFF3EF;
+  --map-node-core-border: #C9992E;
+  --map-node-integracion-border: #8E68B1;
+  --map-node-aplicacion-border: #4F8DC4;
+  --map-node-datos-border: #438F87;
+  --map-node-title: #172331;
+  --map-node-meta: #526274;
+  --map-node-badge-bg: rgba(255,255,255,.78);
+  --map-node-badge-border: rgba(71,86,102,.22);
 
-  --flow-injection: #5F91BE;
-  --flow-extraction: #5A9B92;
-  --flow-bidirectional: #8F75AA;
-  --flow-neutral: #98A3AE;
-  --map-grid: #D7DEE7;
+  --flow-injection: #4E8DC4;
+  --flow-extraction: #478E86;
+  --flow-bidirectional: #8469A4;
+  --flow-neutral: #8995A3;
+  --map-grid: #CAD4E0;
 }
 
 @layer base {
@@ -261,25 +262,60 @@ button svg {
 }
 
 
-/* Map visual system */
+
+
+/* Map visual system — explicit per-theme canvas and controls */
 .react-flow.map-flow {
-  background: var(--background);
+  background: var(--background) !important;
 }
-.light .react-flow.map-flow {
-  background:
-    radial-gradient(circle at 50% 0%, rgba(91, 156, 230, 0.045), transparent 34%),
-    linear-gradient(180deg, #F8FAFC 0%, #F4F7FA 100%);
+.dark .react-flow.map-flow,
+.dark .react-flow.map-flow .react-flow__pane,
+.dark .react-flow.map-flow .react-flow__viewport {
+  background-color: #0F1722 !important;
+}
+.light .react-flow.map-flow,
+.light .react-flow.map-flow .react-flow__pane,
+.light .react-flow.map-flow .react-flow__viewport {
+  background-color: #F3F6FA !important;
 }
 .react-flow.map-flow .react-flow__background pattern circle {
-  fill: var(--map-grid);
-  opacity: .72;
+  fill: var(--map-grid) !important;
+  opacity: .9;
+}
+
+.map-toolbar-surface {
+  background: color-mix(in oklab, var(--card) 96%, transparent) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.dark .map-toolbar-surface {
+  box-shadow: 0 4px 16px rgba(0,0,0,.16);
+}
+.light .map-toolbar-surface {
+  box-shadow: 0 4px 16px rgba(44,65,85,.05);
+}
+
+.dark .react-flow.map-flow .react-flow__controls {
+  background: #182433 !important;
+  border-color: #34465B !important;
+}
+.dark .react-flow.map-flow .react-flow__controls-button {
+  background: #182433 !important;
+  color: #F7FAFC !important;
+  border-color: #34465B !important;
+}
+.dark .react-flow.map-flow .react-flow__controls-button:hover {
+  background: #263A50 !important;
 }
 .light .react-flow.map-flow .react-flow__controls {
-  box-shadow: 0 6px 22px rgba(62, 48, 55, .08) !important;
+  background: #FFFFFF !important;
+  border-color: #C9D4E0 !important;
 }
 .light .react-flow.map-flow .react-flow__controls-button {
-  background: rgba(252, 250, 251, .96) !important;
+  background: #FFFFFF !important;
+  color: #182230 !important;
+  border-color: #C9D4E0 !important;
 }
 .light .react-flow.map-flow .react-flow__controls-button:hover {
-  background: #EEE6EA !important;
+  background: #E7EEF6 !important;
 }
