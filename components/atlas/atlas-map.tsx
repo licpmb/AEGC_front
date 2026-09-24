@@ -13,9 +13,11 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  applyNodeChanges,
   type Connection,
   type Edge,
   type Node,
+  type NodeChange,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { AtlasFlowNode, type AtlasFlowNodeData } from './atlas-node'
@@ -367,7 +369,7 @@ function MapInner() {
     [atlasNodes],
   )
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const undoStackRef = useRef<UndoSnapshot[]>([])
   const undoingRef = useRef(false)
@@ -381,6 +383,42 @@ function MapInner() {
   nodesRef.current = nodes
   edgeHandlesRef.current = edgeHandles
   edgeEndpointsRef.current = edgeEndpoints
+  // React Flow guarda el resize principalmente en "measured/dimensions".
+  // Lo normalizamos también a style.width/style.height para que sobreviva
+  // desmontajes, cambios de vista y recargas.
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((prev) => {
+      const applied = applyNodeChanges(changes, prev)
+      const dimensions = new Map<string, { width: number; height: number }>()
+      for (const change of changes) {
+        if (change.type === 'dimensions' && change.dimensions) {
+          dimensions.set(change.id, {
+            width: change.dimensions.width,
+            height: change.dimensions.height,
+          })
+        }
+      }
+
+      const next = dimensions.size
+        ? applied.map((node) => {
+            const size = dimensions.get(node.id)
+            if (!size) return node
+            return {
+              ...node,
+              style: {
+                ...(node.style ?? {}),
+                width: size.width,
+                height: size.height,
+              },
+            }
+          })
+        : applied
+
+      nodesRef.current = next
+      return next
+    })
+  }, [setNodes])
+
 
   // Recupera el layout editado en este navegador: posiciones, tamaños y puntos
   // manuales de conexión. Se aplica una sola vez al montar el mapa.
@@ -947,7 +985,7 @@ function MapInner() {
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeDragStart={() => pushUndoSnapshot()}
           onNodeDragStop={() => {
