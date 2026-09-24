@@ -210,7 +210,7 @@ type PersistedLayout = UndoSnapshot & {
   savedAt: string
 }
 
-const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v1'
+const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v2'
 
 function MapInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
