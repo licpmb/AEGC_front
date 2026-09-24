@@ -213,8 +213,8 @@ type PersistedLayout = UndoSnapshot & {
   savedAt: string
 }
 
-const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v3'
-const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v2'
+const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v4'
+const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v3'
 
 function MapInner() {
   const atlasNodes = useAtlasNodes()
