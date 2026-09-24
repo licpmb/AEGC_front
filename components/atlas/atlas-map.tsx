@@ -203,7 +203,6 @@ function MapInner() {
     connectionToId?: string | null
   } | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const [orient, setOrient] = useState<Record<string, 'h' | 'v'>>({})
   // reruteo manual de flechas: por id de arista → handles elegidos
   const [edgeHandles, setEdgeHandles] = useState<
     Record<string, { sourceHandle?: string; targetHandle?: string }>
@@ -225,10 +224,6 @@ function MapInner() {
       else next.add(id)
       return next
     })
-  }, [])
-
-  const setOrientation = useCallback((id: string, o: 'h' | 'v') => {
-    setOrient((prev) => ({ ...prev, [id]: o }))
   }, [])
 
   // Issues abiertos por nodo, con rollup hacia los padres.
@@ -420,14 +415,11 @@ function MapInner() {
         const stats = issueStats.get(node.id) ?? { open: 0, blocking: 0 }
         const visible = visibleIds.has(node.id)
         const inFocus = focusSet ? focusSet.has(node.id) : true
-        const o = orient[node.id] ?? 'h'
         const kids = CHILDREN_OF.get(node.id)?.length ?? 0
         return {
           ...rf,
           hidden: !visible,
           selected: selectedNodeIds.includes(node.id),
-          sourcePosition: o === 'v' ? Position.Bottom : Position.Right,
-          targetPosition: o === 'v' ? Position.Top : Position.Left,
           data: {
             node,
             openIssues: stats.open,
@@ -435,12 +427,10 @@ function MapInner() {
             dimmed: !inFocus,
             focused: node.id === selectedId,
             showIssues: filters.showIssues,
-            orientation: o,
             hasChildren: kids > 0,
             collapsed: collapsed.has(node.id),
             hiddenChildren: collapsed.has(node.id) ? descendantCount(node.id) : 0,
             onToggleCollapse: toggleCollapse,
-            onSetOrientation: setOrientation,
           } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
         }
       }),
@@ -453,10 +443,8 @@ function MapInner() {
     issueStats,
     filters.showIssues,
     collapsed,
-    orient,
     setNodes,
     toggleCollapse,
-    setOrientation,
   ])
 
   useEffect(() => {
