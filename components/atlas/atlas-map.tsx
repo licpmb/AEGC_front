@@ -29,6 +29,7 @@ import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
 import { GROUP_META, KIND_META, type AtlasEdge, type AtlasNode } from '@/lib/atlas-types'
 import { useAtlasNodes } from '@/lib/atlas-local'
 import { NodeEditor } from './node-editor'
+import { RelationEditor } from './relation-editor'
 
 const HAS_ENDPOINTS = new Set(
   ATLAS_NODES.filter((n) => (n.endpoints?.length ?? 0) > 0).map((n) => n.id),
@@ -210,6 +211,8 @@ type UndoSnapshot = {
   edgeHandles: Record<string, { sourceHandle?: string; targetHandle?: string }>
   edgeEndpoints: Record<string, { source: string; target: string }>
   createdEdges: AtlasEdge[]
+  relationOverrides: Record<string, AtlasEdge>
+  deletedEdgeIds: string[]
 }
 
 type PersistedLayout = UndoSnapshot & {
@@ -242,6 +245,8 @@ function MapInner() {
     Record<string, { source: string; target: string }>
   >({})
   const [createdEdges, setCreatedEdges] = useState<AtlasEdge[]>([])
+  const [relationOverrides, setRelationOverrides] = useState<Record<string, AtlasEdge>>({})
+  const [deletedEdgeIds, setDeletedEdgeIds] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<MapFilters>({
     query: '',
     groups: ['core', 'plataforma', 'integracion', 'aplicacion', 'datos', 'externo'],
@@ -285,11 +290,21 @@ function MapInner() {
     return map
   }, [])
 
+  const allRelations = useMemo<AtlasEdge[]>(() => {
+    const base = ATLAS_EDGES
+      .filter((edge) => !deletedEdgeIds.has(edge.id))
+      .map((edge) => relationOverrides[edge.id] ?? edge)
+    const local = createdEdges
+      .filter((edge) => !deletedEdgeIds.has(edge.id))
+      .map((edge) => relationOverrides[edge.id] ?? edge)
+    return [...base, ...local]
+  }, [createdEdges, relationOverrides, deletedEdgeIds])
+
   // Effective edges after applying collapse (remap endpoints, drop internals, dedupe)
   const effectiveEdges = useMemo<EffEdge[]>(() => {
     const seen = new Set<string>()
     const out: EffEdge[] = []
-    for (const e of [...ATLAS_EDGES, ...createdEdges]) {
+    for (const e of allRelations) {
       const endpointOverride = edgeEndpoints[e.id]
       const rawSource = endpointOverride?.source ?? e.source
       const rawTarget = endpointOverride?.target ?? e.target
@@ -311,7 +326,7 @@ function MapInner() {
       })
     }
     return out
-  }, [collapsed, edgeEndpoints, createdEdges])
+  }, [collapsed, edgeEndpoints, allRelations])
 
   // Which nodes pass the filters (collapse + group + country + direction + query + issues)
   const visibleIds = useMemo(() => {
@@ -380,6 +395,8 @@ function MapInner() {
   const edgeHandlesRef = useRef(edgeHandles)
   const edgeEndpointsRef = useRef(edgeEndpoints)
   const createdEdgesRef = useRef(createdEdges)
+  const relationOverridesRef = useRef(relationOverrides)
+  const deletedEdgeIdsRef = useRef(deletedEdgeIds)
   const persistenceLoadedRef = useRef(false)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -388,6 +405,8 @@ function MapInner() {
   edgeHandlesRef.current = edgeHandles
   edgeEndpointsRef.current = edgeEndpoints
   createdEdgesRef.current = createdEdges
+  relationOverridesRef.current = relationOverrides
+  deletedEdgeIdsRef.current = deletedEdgeIds
   // React Flow guarda el resize principalmente en "measured/dimensions".
   // Lo normalizamos también a style.width/style.height para que sobreviva
   // desmontajes, cambios de vista y recargas.
@@ -467,6 +486,15 @@ function MapInner() {
             createdEdgesRef.current = saved.createdEdges
             setCreatedEdges(saved.createdEdges)
           }
+          if (saved.relationOverrides && typeof saved.relationOverrides === 'object') {
+            relationOverridesRef.current = saved.relationOverrides
+            setRelationOverrides(saved.relationOverrides)
+          }
+          if (Array.isArray(saved.deletedEdgeIds)) {
+            const restoredDeleted = new Set(saved.deletedEdgeIds)
+            deletedEdgeIdsRef.current = restoredDeleted
+            setDeletedEdgeIds(restoredDeleted)
+          }
         }
       }
     } catch {
@@ -498,6 +526,14 @@ function MapInner() {
           Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
         ),
         createdEdges: createdEdgesRef.current.map((edge) => ({ ...edge })),
+      relationOverrides: Object.fromEntries(
+        Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
+      ),
+      deletedEdgeIds: [...deletedEdgeIdsRef.current],
+        relationOverrides: Object.fromEntries(
+          Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
+        ),
+        deletedEdgeIds: [...deletedEdgeIdsRef.current],
       }
       window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
     } catch {
@@ -518,7 +554,7 @@ function MapInner() {
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
-  }, [nodes, edgeHandles, edgeEndpoints, createdEdges, persistLayoutNow])
+  }, [nodes, edgeHandles, edgeEndpoints, createdEdges, relationOverrides, deletedEdgeIds, persistLayoutNow])
 
   // Flush de seguridad: si el usuario sale, recarga o cierra la pestaña antes del
   // debounce, persistimos el último estado visible del mapa.
@@ -598,6 +634,14 @@ function MapInner() {
     const restoredCreatedEdges = (snapshot.createdEdges ?? []).map((edge) => ({ ...edge }))
     createdEdgesRef.current = restoredCreatedEdges
     setCreatedEdges(restoredCreatedEdges)
+    const restoredOverrides = Object.fromEntries(
+      Object.entries(snapshot.relationOverrides ?? {}).map(([id, edge]) => [id, { ...edge }]),
+    )
+    relationOverridesRef.current = restoredOverrides
+    setRelationOverrides(restoredOverrides)
+    const restoredDeleted = new Set(snapshot.deletedEdgeIds ?? [])
+    deletedEdgeIdsRef.current = restoredDeleted
+    setDeletedEdgeIds(restoredDeleted)
     requestAnimationFrame(() => {
       undoingRef.current = false
     })
@@ -877,6 +921,9 @@ function MapInner() {
   }, [effectiveEdges, visibleIds, focusSet, filters.direction, edgeHandles, selectedEdgeId, nodes, setEdges])
 
   const selected = selectedId ? (atlasNodes.find((n) => n.id === selectedId) ?? null) : null
+  const selectedRelation = selectedEdgeId
+    ? allRelations.find((edge) => edge.id === (selectedEdgeId.startsWith('eff-') ? selectedEdgeId.slice(4) : selectedEdgeId)) ?? null
+    : null
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -897,6 +944,78 @@ function MapInner() {
     },
     [collapsed],
   )
+
+  const editRelation = useCallback((edgeId: string) => {
+    setSelectedId(null)
+    setSelectedNodeIds([])
+    setSelectedEdgeId(edgeId.startsWith('eff-') ? edgeId : `eff-${edgeId}`)
+  }, [])
+
+  const saveRelation = useCallback((nextEdge: AtlasEdge) => {
+    pushUndoSnapshot()
+    const isCreated = createdEdgesRef.current.some((edge) => edge.id === nextEdge.id)
+
+    if (isCreated) {
+      setCreatedEdges((prev) => {
+        const next = prev.map((edge) => edge.id === nextEdge.id ? nextEdge : edge)
+        createdEdgesRef.current = next
+        return next
+      })
+    } else {
+      setRelationOverrides((prev) => {
+        const next = { ...prev, [nextEdge.id]: nextEdge }
+        relationOverridesRef.current = next
+        return next
+      })
+    }
+
+    setEdgeEndpoints((prev) => {
+      const next = { ...prev, [nextEdge.id]: { source: nextEdge.source, target: nextEdge.target } }
+      edgeEndpointsRef.current = next
+      return next
+    })
+
+    setSelectedEdgeId(`eff-${nextEdge.id}`)
+    requestAnimationFrame(() => persistLayoutNow())
+  }, [pushUndoSnapshot, persistLayoutNow])
+
+  const deleteRelation = useCallback((edgeId: string) => {
+    pushUndoSnapshot()
+    const baseId = edgeId.startsWith('eff-') ? edgeId.slice(4) : edgeId
+    const isCreated = createdEdgesRef.current.some((edge) => edge.id === baseId)
+
+    if (isCreated) {
+      setCreatedEdges((prev) => {
+        const next = prev.filter((edge) => edge.id !== baseId)
+        createdEdgesRef.current = next
+        return next
+      })
+    } else {
+      setDeletedEdgeIds((prev) => {
+        const next = new Set(prev)
+        next.add(baseId)
+        deletedEdgeIdsRef.current = next
+        return next
+      })
+    }
+
+    setRelationOverrides((prev) => {
+      if (!(baseId in prev)) return prev
+      const next = { ...prev }
+      delete next[baseId]
+      relationOverridesRef.current = next
+      return next
+    })
+    setEdgeEndpoints((prev) => {
+      if (!(baseId in prev)) return prev
+      const next = { ...prev }
+      delete next[baseId]
+      edgeEndpointsRef.current = next
+      return next
+    })
+    setSelectedEdgeId(null)
+    requestAnimationFrame(() => persistLayoutNow())
+  }, [pushUndoSnapshot, persistLayoutNow])
 
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return
@@ -974,10 +1093,8 @@ function MapInner() {
   // Un click selecciona la relación y habilita el cambio manual del punto de
   // origen/destino. Doble click conserva el acceso al catálogo de endpoints.
   const handleEdgeClick = useCallback((_: unknown, edge: Edge) => {
-    setSelectedId(null)
-    setSelectedNodeIds([])
-    setSelectedEdgeId(edge.id)
-  }, [])
+    editRelation(edge.id)
+  }, [editRelation])
 
   const handleEdgeDoubleClick = useCallback((_: unknown, edge: Edge) => {
     const s = edge.source
@@ -1030,12 +1147,6 @@ function MapInner() {
           nodeCount={visibleIds.size}
           totalCount={atlasNodes.length}
         />
-
-        {selectedEdgeId && (
-          <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-md border border-border bg-card/95 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur-sm">
-            Relación seleccionada: arrastrá cualquiera de sus extremos hasta otro nodo para cambiar origen o destino.
-          </div>
-        )}
 
         <ReactFlow
           nodes={nodes}
@@ -1108,13 +1219,24 @@ function MapInner() {
         <DetailPanel
           node={selected}
           nodes={atlasNodes}
-          edges={[...ATLAS_EDGES, ...createdEdges]}
+          edges={allRelations}
           issues={ATLAS_ISSUES}
           onClose={() => setSelectedId(null)}
           onSelect={handleSelect}
           onOpenArchimate={(id) => setArchimateFor(id)}
           onOpenEndpoints={(id) => setEndpointsView({ nodeId: id })}
           onEdit={(id) => setEditingId(id)}
+          onEditRelation={editRelation}
+        />
+      )}
+
+      {selectedRelation && (
+        <RelationEditor
+          edge={selectedRelation}
+          nodes={atlasNodes}
+          onSave={saveRelation}
+          onDelete={deleteRelation}
+          onClose={() => setSelectedEdgeId(null)}
         />
       )}
 
