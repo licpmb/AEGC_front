@@ -159,7 +159,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Capital Humano ejecuta luego un programa SAP que incorpora la información.',
-    x: 820, y: 500,
+    x: 740, y: 420,
+    width: 760,
+    height: 300,
     country: 'AR',
   },
   {
@@ -170,7 +172,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Frontend de DMP.',
-    x: 1060, y: 450,
+    x: 790, y: 505,
     parentId: 'dmp',
   },
   {
@@ -181,7 +183,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Gateway de DMP.',
-    x: 1060, y: 520,
+    x: 1010, y: 505,
     parentId: 'dmp',
   },
   {
@@ -192,7 +194,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'API de DMP.',
-    x: 1300, y: 520,
+    x: 1230, y: 505,
     parentId: 'dmp',
   },
   {
@@ -203,7 +205,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Capital Humano',
     description: 'Base SQL de DMP.',
-    x: 1300, y: 590,
+    x: 1230, y: 610,
     parentId: 'dmp',
   },
   {
@@ -320,7 +322,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial',
     description: 'Gestión Comercial Cepas. Código SD-12. La cadena técnica pasa por Gateway y API de Cepas, CPI y luego APIs estándar de SAP.',
-    x: 1300, y: -90,
+    x: 1080, y: -260,
+    width: 560,
+    height: 280,
     country: 'AR',
   },
   {
@@ -331,7 +335,8 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial / Integraciones',
     description: 'Gateway de Cepas utilizado por GCC antes de la API de negocio.',
-    x: 1060, y: -90,
+    x: 1130, y: -155,
+    parentId: 'gcc',
     country: 'AR',
   },
   {
@@ -342,7 +347,8 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial / Integraciones',
     description: 'API de Cepas utilizada por GCC. Desde aquí la integración continúa hacia CPI.',
-    x: 820, y: -90,
+    x: 1370, y: -155,
+    parentId: 'gcc',
     country: 'AR',
   },
 
