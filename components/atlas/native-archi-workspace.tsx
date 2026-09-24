@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
-import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Download } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileUp, Folder, Maximize2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, ZoomIn, ZoomOut } from 'lucide-react'
 import { connectionPoints, parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
 import { exportArchiChanges, loadArchiDraft, saveArchiDraft, type ArchiEdit } from '@/lib/archi-universe'
 import { ArchiUniversePanel } from './archi-universe-panel'
@@ -100,8 +100,12 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   const [loading, setLoading] = useState(false)
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [fileHover, setFileHover] = useState(false)
+  const [leftCompact, setLeftCompact] = useState(false)
+  const [rightCompact, setRightCompact] = useState(false)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; originX: number; originY: number; x: number; y: number } | null>(null)
   const dragRef = useRef<typeof drag>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!initialModel || model?.id === initialModel.id) return
     setModel(initialModel)
@@ -136,8 +140,67 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const q = query.trim().toLocaleLowerCase()
     return q ? objects.filter((o) => `${o.label} ${o.type}`.toLocaleLowerCase().includes(q)) : []
   }, [objects, query])
-  const viewList = useMemo(() => model?.views.filter((v) =>
-    v.name.toLocaleLowerCase().includes(viewQuery.trim().toLocaleLowerCase())) ?? [], [model, viewQuery])
+  const viewList = useMemo(() => {
+    const q = viewQuery.trim().toLocaleLowerCase()
+    return model?.views.filter((v) => !q || `${v.folderPath.join(' ')} ${v.name}`.toLocaleLowerCase().includes(q)) ?? []
+  }, [model, viewQuery])
+
+  type ViewTreeNode = { name: string; path: string; folders: ViewTreeNode[]; views: typeof viewList }
+  const viewTree = useMemo(() => {
+    const root: ViewTreeNode = { name: model?.name ?? 'Modelo', path: '', folders: [], views: [] }
+    const folderMap = new Map<string, ViewTreeNode>([['', root]])
+    for (const item of viewList) {
+      let parent = root
+      item.folderPath.forEach((name, index) => {
+        const path = item.folderPath.slice(0, index + 1).join('/')
+        let folder = folderMap.get(path)
+        if (!folder) {
+          folder = { name, path, folders: [], views: [] }
+          folderMap.set(path, folder)
+          parent.folders.push(folder)
+        }
+        parent = folder
+      })
+      parent.views.push(item)
+    }
+    const sort = (node: ViewTreeNode) => {
+      node.folders.sort((a, b) => a.name.localeCompare(b.name))
+      node.views.sort((a, b) => a.name.localeCompare(b.name))
+      node.folders.forEach(sort)
+    }
+    sort(root)
+    return root
+  }, [model?.name, viewList])
+
+  useEffect(() => {
+    if (!model) return
+    const paths = new Set<string>()
+    for (const v of model.views) v.folderPath.forEach((_, index) => paths.add(v.folderPath.slice(0, index + 1).join('/')))
+    setExpandedFolders(paths)
+  }, [model?.id])
+
+  const fitCurrentView = useCallback(() => {
+    const host = canvasRef.current
+    if (!host || !view) return
+    const padding = 24
+    const availableWidth = Math.max(100, host.clientWidth - padding * 2)
+    const availableHeight = Math.max(100, host.clientHeight - padding * 2)
+    const next = Math.min(availableWidth / view.width, availableHeight / view.height)
+    setScale(Math.max(.08, Math.min(2.5, next)))
+  }, [view])
+
+  useEffect(() => {
+    const id = requestAnimationFrame(fitCurrentView)
+    return () => cancelAnimationFrame(id)
+  }, [fitCurrentView, leftCompact, rightCompact])
+
+  useEffect(() => {
+    const host = canvasRef.current
+    if (!host) return
+    const observer = new ResizeObserver(() => fitCurrentView())
+    observer.observe(host)
+    return () => observer.disconnect()
+  }, [fitCurrentView])
 
   async function load(file?: File) {
     if (!file) return
@@ -154,7 +217,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       setViewId(parsed.views.some((v) => v.id === KETAN) ? KETAN : parsed.views[0].id)
       setSelected(null)
       setSelectedConnectionId(null)
-      setScale(1)
+      requestAnimationFrame(fitCurrentView)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo abrir el modelo.')
     } finally { setLoading(false) }
@@ -208,14 +271,20 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     if (event.button !== 0 || !viewId || containerIds.has(o.id)) return
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
     const next = { id: o.id, startX: event.clientX, startY: event.clientY, originX: o.x, originY: o.y, x: o.x, y: o.y }
-    dragRef.current = next; setDrag(next); setSelected(o)
+    // No disparamos un render pesado en pointerdown. El drag se materializa recién
+    // cuando el puntero realmente se mueve; esto reduce el INP al seleccionar.
+    dragRef.current = next
   }
   function move(event: PointerEvent<SVGGElement>) {
     const current = dragRef.current
     if (!current) return
-    const next = { ...current, x: Math.max(0, Math.round(current.originX + (event.clientX - current.startX) / scale)),
-      y: Math.max(0, Math.round(current.originY + (event.clientY - current.startY) / scale)) }
-    dragRef.current = next; setDrag(next)
+    const dx = event.clientX - current.startX
+    const dy = event.clientY - current.startY
+    if (!drag && Math.hypot(dx, dy) < 3) return
+    const next = { ...current, x: Math.max(0, Math.round(current.originX + dx / scale)),
+      y: Math.max(0, Math.round(current.originY + dy / scale)) }
+    dragRef.current = next
+    setDrag(next)
   }
   function endMove() {
     const current = dragRef.current
@@ -364,11 +433,46 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       </div>
       <input type="file" accept=".archimate,.xml" className="sr-only" onChange={(e) => { void load(e.target.files?.[0]); e.target.value = '' }} />
     </label> : <div className="flex min-h-0 flex-1">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-sidebar">
-        <div className="space-y-2 border-b border-border p-3"><p className="truncate text-[12px] font-semibold" title={model.name}>{model.name}</p><p className="text-[11px] text-muted-foreground">{model.views.length} vistas · {model.elements.size} elementos · {model.relationships.size} relaciones</p>
-          <Input value={viewQuery} onChange={(e) => setViewQuery(e.target.value)} placeholder="Buscar vista" aria-label="Buscar vista" className="h-8 text-xs" /></div>
-        <div className="min-h-0 flex-1 overflow-auto p-2">{viewList.map((v) => <button key={v.id} onClick={() => { setViewId(v.id); setSelected(null); setQuery(''); setScale(1) }}
-          className={`mb-1 w-full rounded-md px-2 py-2 text-left text-[12px] hover:bg-accent ${v.id === viewId ? 'bg-accent font-semibold' : ''}`}>{v.name}<span className="ml-1 text-[10px] text-muted-foreground">{v.objects.length}</span></button>)}</div>
+      <aside className={`flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] ${leftCompact ? 'w-10' : 'w-[270px]'}`}>
+        <div className={`border-b border-border ${leftCompact ? 'p-1' : 'p-2.5'}`}>
+          <div className="flex items-center gap-2">
+            {!leftCompact && <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-semibold" title={model.name}>{model.name}</p>
+              <p className="text-[10px] text-muted-foreground">{model.views.length} vistas · {model.elements.size} elementos · {model.relationships.size} relaciones</p>
+            </div>}
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setLeftCompact((v) => !v)} aria-label={leftCompact ? 'Expandir vistas' : 'Compactar vistas'} title={leftCompact ? 'Expandir vistas' : 'Compactar vistas'}>
+              {leftCompact ? <PanelLeftOpen size={15}/> : <PanelLeftClose size={15}/>}
+            </Button>
+          </div>
+          {!leftCompact && <div className="relative mt-2">
+            <Search size={12} className="absolute left-2 top-2.5 text-muted-foreground"/>
+            <Input value={viewQuery} onChange={(e) => setViewQuery(e.target.value)} placeholder="Buscar vista" aria-label="Buscar vista" className="h-8 pl-7 text-xs" />
+          </div>}
+        </div>
+        {!leftCompact && <div className="min-h-0 flex-1 overflow-auto px-1 py-1.5">
+          {(() => {
+            const renderNode = (node: ViewTreeNode, depth = 0): React.ReactNode => <>
+              {node.folders.map((folder) => {
+                const open = viewQuery.trim() ? true : expandedFolders.has(folder.path)
+                return <div key={folder.path}>
+                  <button type="button" onClick={() => setExpandedFolders((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(folder.path)) next.delete(folder.path); else next.add(folder.path)
+                    return next
+                  })} className="flex w-full items-center gap-1 rounded px-1.5 py-1 text-left text-[11px] font-medium hover:bg-accent" style={{paddingLeft: 6 + depth * 12}}>
+                    {open ? <ChevronDown size={12}/> : <ChevronRight size={12}/>}<Folder size={13}/><span className="truncate">{folder.name}</span>
+                  </button>
+                  {open && renderNode(folder, depth + 1)}
+                </div>
+              })}
+              {node.views.map((v) => <button key={v.id} onClick={() => { setViewId(v.id); setSelected(null); setSelectedConnectionId(null); setQuery('') }}
+                className={`flex w-full items-center gap-1 rounded px-1.5 py-1 text-left text-[11px] hover:bg-accent ${v.id === viewId ? 'bg-accent font-semibold' : ''}`} style={{paddingLeft: 22 + depth * 12}}>
+                <span className="truncate">{v.name}</span><span className="ml-auto text-[9px] text-muted-foreground">{v.objects.length}</span>
+              </button>)}
+            </>
+            return renderNode(viewTree)
+          })()}
+        </div>}
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
@@ -379,13 +483,13 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
           {selectedConnectionId && <Button variant="outline" size="sm" onClick={addBend}>Añadir pliegue</Button>}
           {edits.length > 0 && <span className="rounded border border-primary/40 px-2 py-1 text-[11px] text-foreground">{edits.length} cambios · revisalos en «Cambios»</span>}
           <div className="relative"><Search size={13} className="absolute left-2 top-2.5 text-muted-foreground"/><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar componente" aria-label="Buscar componente" className="h-8 w-48 pl-7 text-xs"/></div>
-          <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.max(.4, s / 1.25))} aria-label="Alejar"><ZoomOut size={14}/></Button>
+          <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.max(.08, s / 1.25))} aria-label="Alejar"><ZoomOut size={14}/></Button>
           <span className="w-10 text-center text-[11px]">{Math.round(scale * 100)}%</span>
           <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.min(3, s * 1.25))} aria-label="Acercar"><ZoomIn size={14}/></Button>
-          <Button variant="outline" size="icon" onClick={() => setScale(1)} aria-label="Restablecer zoom"><RotateCcw size={14}/></Button>
+          <Button variant="outline" size="icon" onClick={fitCurrentView} aria-label="Ajustar vista a pantalla" title="Ajustar vista a pantalla"><Maximize2 size={14}/></Button>
         </div>
         {matches.length > 0 && <div className="flex max-h-24 flex-wrap gap-1 overflow-auto border-b border-border px-3 py-2">{matches.slice(0, 30).map((o) => <button key={o.id} onClick={() => setSelected(o)} className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent">{o.label}</button>)}{matches.length > 30 && <span className="text-[11px]">+{matches.length - 30}</span>}</div>}
-        <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
+        <div ref={canvasRef} className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
             <defs>
               <marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 7 4 0 8 Z" fill="context-stroke"/></marker>
@@ -448,7 +552,12 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
           </svg>}
         </div>
       </section>
-      <ArchiUniversePanel model={model} selected={selected} viewId={viewId} xml={originalXml} edits={edits} setEdits={setEdits}/>
+      {rightCompact ? <aside className="flex w-10 shrink-0 flex-col items-center border-l border-border bg-card py-1">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRightCompact(false)} aria-label="Expandir propiedades" title="Expandir propiedades"><PanelRightOpen size={15}/></Button>
+      </aside> : <div className="relative flex shrink-0">
+        <Button variant="ghost" size="icon" className="absolute right-1 top-1 z-20 h-7 w-7" onClick={() => setRightCompact(true)} aria-label="Compactar propiedades" title="Compactar propiedades"><PanelRightClose size={14}/></Button>
+        <ArchiUniversePanel model={model} selected={selected} viewId={viewId} xml={originalXml} edits={edits} setEdits={setEdits}/>
+      </div>}
     </div>}
   </div>
 }
