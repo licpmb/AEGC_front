@@ -166,21 +166,38 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     } finally { setLoading(false) }
   }
 
-  function saveArchiFile() {
+  async function saveArchiFile() {
     if (!model || !originalXml) return
     try {
       const result = edits.length ? exportArchiChanges(originalXml, model, edits) : originalXml
       const parsed = parseNativeArchi(result)
       if (parsed.id !== model.id || parsed.views.length < model.views.length)
         throw new Error('La validación del archivo modificado falló.')
-      const url = URL.createObjectURL(new Blob([result], { type: 'application/xml' }))
-      const anchor = document.createElement('a')
       const base = (model.name || 'modelo-archi').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'modelo-archi'
-      anchor.href = url
-      anchor.download = `${base}.archimate`
-      anchor.click()
-      setTimeout(() => URL.revokeObjectURL(url), 30_000)
+      const picker = (window as Window & {
+        showSaveFilePicker?: (options: {
+          suggestedName?: string
+          types?: Array<{ description: string; accept: Record<string, string[]> }>
+        }) => Promise<{ createWritable: () => Promise<{ write: (value: string | Blob) => Promise<void>; close: () => Promise<void> }> }>
+      }).showSaveFilePicker
+      if (picker) {
+        const handle = await picker({
+          suggestedName: `${base}.archimate`,
+          types: [{ description: 'ArchiMate model', accept: { 'application/xml': ['.archimate', '.xml'] } }],
+        })
+        const writable = await handle.createWritable()
+        await writable.write(result)
+        await writable.close()
+      } else {
+        const url = URL.createObjectURL(new Blob([result], { type: 'application/xml' }))
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = `${base}.archimate`
+        anchor.click()
+        setTimeout(() => URL.revokeObjectURL(url), 30_000)
+      }
     } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return
       setError(cause instanceof Error ? cause.message : 'No se pudo guardar el archivo .archimate.')
     }
   }
