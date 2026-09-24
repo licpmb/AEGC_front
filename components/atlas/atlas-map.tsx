@@ -25,6 +25,8 @@ import { EndpointExplorer } from './endpoint-explorer'
 import { MapToolbar, type MapFilters } from './map-toolbar'
 import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
 import { KIND_META, type AtlasNode } from '@/lib/atlas-types'
+import { useAtlasNodes } from '@/lib/atlas-local'
+import { NodeEditor } from './node-editor'
 
 const HAS_ENDPOINTS = new Set(
   ATLAS_NODES.filter((n) => (n.endpoints?.length ?? 0) > 0).map((n) => n.id),
@@ -214,7 +216,9 @@ type PersistedLayout = UndoSnapshot & {
 const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v2'
 
 function MapInner() {
+  const atlasNodes = useAtlasNodes()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [archimateFor, setArchimateFor] = useState<string | null>(null)
@@ -314,7 +318,7 @@ function MapInner() {
       }
     }
     return new Set(
-      ATLAS_NODES.filter((n) => {
+      atlasNodes.filter((n) => {
         if (representative(n.id, collapsed) !== n.id) return false // hidden under a collapsed parent
         if (!filters.groups.includes(KIND_META[n.kind].group)) return false
         if (filters.countries.length > 0 && n.country && !filters.countries.includes(n.country))
@@ -328,7 +332,7 @@ function MapInner() {
         return true
       }).map((n) => n.id),
     )
-  }, [filters, issueStats, collapsed, effectiveEdges])
+  }, [filters, issueStats, collapsed, effectiveEdges, atlasNodes])
 
   // Neighbourhood of the selected node, for focus highlight
   const focusSet = useMemo(() => {
@@ -343,7 +347,7 @@ function MapInner() {
 
   const initialNodes: Node[] = useMemo(
     () =>
-      ATLAS_NODES.map((n) => ({
+      atlasNodes.map((n) => ({
         id: n.id,
         type: 'atlas',
         position: { x: n.x, y: n.y },
@@ -357,7 +361,7 @@ function MapInner() {
           showIssues: true,
         } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
       })),
-    [],
+    [atlasNodes],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
@@ -693,7 +697,7 @@ function MapInner() {
   useEffect(() => {
     setNodes((prev) =>
       prev.map((rf) => {
-        const node = ATLAS_NODES.find((n) => n.id === rf.id) as AtlasNode
+        const node = atlasNodes.find((n) => n.id === rf.id) as AtlasNode
         const stats = issueStats.get(node.id) ?? { open: 0, blocking: 0 }
         const visible = visibleIds.has(node.id)
         const inFocus = focusSet ? focusSet.has(node.id) : true
@@ -729,6 +733,7 @@ function MapInner() {
     toggleCollapse,
     pushUndoSnapshot,
     persistLayoutNow,
+    atlasNodes,
   ])
 
   useEffect(() => {
@@ -804,7 +809,7 @@ function MapInner() {
     )
   }, [effectiveEdges, visibleIds, focusSet, filters.direction, edgeHandles, selectedEdgeId, nodes, setEdges])
 
-  const selected = selectedId ? (ATLAS_NODES.find((n) => n.id === selectedId) ?? null) : null
+  const selected = selectedId ? (atlasNodes.find((n) => n.id === selectedId) ?? null) : null
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -917,7 +922,7 @@ function MapInner() {
           selectionCount={selectedNodeIds.length}
           onMultiNodeAction={applyMultiNodeAction}
           nodeCount={visibleIds.size}
-          totalCount={ATLAS_NODES.length}
+          totalCount={atlasNodes.length}
         />
 
         {selectedEdgeId && (
@@ -993,15 +998,21 @@ function MapInner() {
       {selected && (
         <DetailPanel
           node={selected}
-          nodes={ATLAS_NODES}
+          nodes={atlasNodes}
           edges={ATLAS_EDGES}
           issues={ATLAS_ISSUES}
           onClose={() => setSelectedId(null)}
           onSelect={handleSelect}
           onOpenArchimate={(id) => setArchimateFor(id)}
           onOpenEndpoints={(id) => setEndpointsView({ nodeId: id })}
+          onEdit={(id) => setEditingId(id)}
         />
       )}
+
+      {editingId && (() => {
+        const node = atlasNodes.find((item) => item.id === editingId)
+        return node ? <NodeEditor node={node} onClose={() => setEditingId(null)}/> : null
+      })()}
 
       {archimateFor && (
         <ArchimateViewer nodeId={archimateFor} onClose={() => setArchimateFor(null)} />
