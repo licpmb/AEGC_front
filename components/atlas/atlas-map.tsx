@@ -32,7 +32,7 @@ const HAS_ENDPOINTS = new Set(
 const nodeTypes = { atlas: AtlasFlowNode }
 
 const HEALTH_COLOR: Record<string, string> = {
-  ok: 'oklch(0.98 0.01 264 / 26%)',
+  ok: 'var(--flow-neutral)',
   degradado: 'var(--chart-1)',
   caido: 'var(--destructive)',
 }
@@ -300,10 +300,10 @@ function MapInner() {
           const stroke =
             inFocus && focusSet
               ? e.direction === 'inyeccion'
-                ? 'var(--chart-3)'
+                ? 'var(--flow-injection)'
                 : e.direction === 'extraccion'
-                  ? 'var(--chart-4)'
-                  : 'var(--chart-2)'
+                  ? 'var(--flow-extraction)'
+                  : 'var(--flow-bidirectional)'
               : HEALTH_COLOR[e.health]
           return {
             id: e.id,
@@ -325,9 +325,9 @@ function MapInner() {
             className: inFocus && focusSet ? 'edge-animated' : undefined,
             style: {
               stroke,
-              strokeWidth: inFocus && focusSet ? 2 : e.health === 'ok' ? 1.2 : 1.6,
+              strokeWidth: inFocus && focusSet ? 2.1 : e.health === 'ok' ? 1.05 : 1.55,
               strokeDasharray: e.aggregated ? '2 3' : undefined,
-              opacity: focusSet ? (inFocus ? 1 : 0.12) : 0.65,
+              opacity: focusSet ? (inFocus ? 1 : 0.10) : e.health === 'ok' ? 0.42 : 0.72,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
@@ -420,13 +420,13 @@ function MapInner() {
           minZoom={0.15}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
-          className="bg-background"
+          className="map-flow"
         >
           <Background
             variant={BackgroundVariant.Dots}
             gap={26}
             size={1}
-            color="var(--border)"
+            color="var(--map-grid)"
           />
           <Controls
             showInteractive={false}
@@ -467,10 +467,10 @@ function MapInner() {
 
 function MapLegend() {
   const items = [
-    { label: 'Core SAP', color: 'var(--chart-1)' },
-    { label: 'Integración', color: 'var(--chart-2)' },
-    { label: 'Aplicaciones', color: 'var(--chart-3)' },
-    { label: 'Datos', color: 'var(--chart-4)' },
+    { label: 'Core SAP', color: 'var(--map-node-core-border)' },
+    { label: 'Integración', color: 'var(--map-node-integracion-border)' },
+    { label: 'Aplicaciones', color: 'var(--map-node-aplicacion-border)' },
+    { label: 'Datos', color: 'var(--map-node-datos-border)' },
   ]
   return (
     <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col gap-2 rounded-lg border border-border bg-card/85 px-3 py-2.5 backdrop-blur-sm">
@@ -487,11 +487,11 @@ function MapLegend() {
       </div>
       <div className="mt-1 flex flex-col gap-1.5 border-t border-border pt-2">
         <div className="flex items-center gap-2">
-          <span className="h-0.5 w-5 rounded-full" style={{ background: 'var(--chart-3)' }} />
+          <span className="h-0.5 w-5 rounded-full" style={{ background: 'var(--flow-injection)' }} />
           <span className="text-[11px]">Inyección</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="h-0.5 w-5 rounded-full" style={{ background: 'var(--chart-4)' }} />
+          <span className="h-0.5 w-5 rounded-full" style={{ background: 'var(--flow-extraction)' }} />
           <span className="text-[11px]">Extracción</span>
         </div>
         <div className="flex items-center gap-2">
