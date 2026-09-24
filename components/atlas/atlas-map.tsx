@@ -1017,6 +1017,26 @@ function MapInner() {
     requestAnimationFrame(() => persistLayoutNow())
   }, [pushUndoSnapshot, persistLayoutNow])
 
+  useEffect(() => {
+    const onDeleteSelectedRelation = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.tagName === 'SELECT' ||
+        target?.isContentEditable
+      ) return
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEdgeId) {
+        event.preventDefault()
+        deleteRelation(selectedEdgeId)
+      }
+    }
+
+    window.addEventListener('keydown', onDeleteSelectedRelation)
+    return () => window.removeEventListener('keydown', onDeleteSelectedRelation)
+  }, [selectedEdgeId, deleteRelation])
+
   const onConnect = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target || connection.source === connection.target) return
 
