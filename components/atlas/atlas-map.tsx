@@ -213,8 +213,8 @@ type PersistedLayout = UndoSnapshot & {
   savedAt: string
 }
 
-const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v4'
-const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v3'
+const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v5'
+const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v4'
 
 function MapInner() {
   const atlasNodes = useAtlasNodes()
@@ -227,7 +227,9 @@ function MapInner() {
     nodeId: string
     connectionToId?: string | null
   } | null>(null)
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(ATLAS_NODES.filter((n) => n.kind === 'interface' && ATLAS_NODES.some((c) => c.parentId === n.id)).map((n) => n.id)),
+  )
   // reruteo manual de flechas: por id de arista → handles elegidos
   const [edgeHandles, setEdgeHandles] = useState<
     Record<string, { sourceHandle?: string; targetHandle?: string }>
