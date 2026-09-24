@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
-import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle } from 'lucide-react'
+import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Download } from 'lucide-react'
 import { connectionPoints, parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
-import { loadArchiDraft, loadUniverse, saveArchiDraft, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
+import { exportArchiChanges, loadArchiDraft, loadUniverse, saveArchiDraft, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
 import { ArchiUniversePanel } from './archi-universe-panel'
 import { UniverseGraph } from './universe-graph'
 import { Button } from '@/components/ui/button'
@@ -166,6 +166,25 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     } finally { setLoading(false) }
   }
 
+  function saveArchiFile() {
+    if (!model || !originalXml) return
+    try {
+      const result = edits.length ? exportArchiChanges(originalXml, model, edits) : originalXml
+      const parsed = parseNativeArchi(result)
+      if (parsed.id !== model.id || parsed.views.length < model.views.length)
+        throw new Error('La validación del archivo modificado falló.')
+      const url = URL.createObjectURL(new Blob([result], { type: 'application/xml' }))
+      const anchor = document.createElement('a')
+      const base = (model.name || 'modelo-archi').replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'modelo-archi'
+      anchor.href = url
+      anchor.download = `${base}.archimate`
+      anchor.click()
+      setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el archivo .archimate.')
+    }
+  }
+
   function fileDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault(); setFileHover(false)
     const file = event.dataTransfer.files[0]
@@ -314,8 +333,11 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
       <div className="min-w-0 flex-1">
         <h2 className="text-[16px] font-semibold">Modelo Archi · universo de interfaces</h2>
-        <p className="text-[12px] text-muted-foreground">Abrí el archivo, mové figuras, seleccioná líneas para editar sus pliegues y editá elementos desde el panel. Los cambios se guardan como borrador local.</p>
+        <p className="text-[12px] text-muted-foreground">Editor compatible con Archi: mové figuras, editá relaciones y propiedades, y guardá nuevamente el .archimate. El original permanece intacto hasta que descargues.</p>
       </div>
+      {model && <Button variant="outline" size="sm" onClick={saveArchiFile} title={edits.length ? `Guardar ${edits.length} cambios en un nuevo .archimate` : 'Descargar el modelo abierto'}>
+        <Download size={15}/>{edits.length ? `Guardar .archimate (${edits.length})` : 'Guardar .archimate'}
+      </Button>}
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-[12px] font-medium hover:bg-accent">
         <FileUp size={15}/>{model ? 'Cambiar modelo' : 'Abrir .archimate'}
         <input type="file" accept=".archimate,.xml" className="sr-only" onChange={(e) => { void load(e.target.files?.[0]); e.target.value = '' }} />
