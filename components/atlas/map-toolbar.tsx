@@ -62,11 +62,11 @@ export function MapToolbar({
             value={filters.query}
             onChange={(e) => onChange({ ...filters, query: e.target.value })}
             placeholder="Buscar nodo, owner, repo, stack…"
-            className="h-9 w-72 border-border bg-card/90 pl-8 text-[13px] backdrop-blur-sm"
+            className="map-toolbar-surface h-9 w-72 pl-8 text-[13px] backdrop-blur-sm"
           />
         </div>
 
-        <div className="flex overflow-hidden rounded-md border border-border bg-card/90 backdrop-blur-sm">
+        <div className="map-toolbar-surface flex overflow-hidden rounded-md border backdrop-blur-sm">
           {DIRECTIONS.map((d) => (
             <button
               key={d.key}
@@ -83,7 +83,7 @@ export function MapToolbar({
           ))}
         </div>
 
-        <div className="flex items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-1.5 backdrop-blur-sm">
+        <div className="map-toolbar-surface flex items-center gap-2 rounded-md border px-3 py-1.5 backdrop-blur-sm">
           <GitBranch size={13} className="text-muted-foreground" />
           <Label htmlFor="show-issues" className="cursor-pointer text-[12px]">
             Issues
@@ -99,7 +99,7 @@ export function MapToolbar({
           variant={filters.onlyWithIssues ? 'default' : 'outline'}
           size="sm"
           onClick={() => onChange({ ...filters, onlyWithIssues: !filters.onlyWithIssues })}
-          className="h-9 bg-card/90 backdrop-blur-sm data-[variant=default]:bg-primary"
+          className="map-toolbar-surface h-9 backdrop-blur-sm data-[variant=default]:!bg-primary data-[variant=default]:!text-primary-foreground"
         >
           <AlertTriangle size={13} />
           Solo con issues
@@ -109,13 +109,13 @@ export function MapToolbar({
           variant="outline"
           size="sm"
           onClick={onFit}
-          className="h-9 bg-card/90 backdrop-blur-sm"
+          className="map-toolbar-surface h-9 backdrop-blur-sm"
         >
           <Maximize2 size={13} />
           Encuadrar
         </Button>
 
-        <span className="ml-auto rounded-md border border-border bg-card/90 px-2.5 py-2 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
+        <span className="map-toolbar-surface ml-auto rounded-md border px-2.5 py-2 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
           {nodeCount}/{totalCount} nodos
         </span>
       </div>
@@ -130,8 +130,8 @@ export function MapToolbar({
               className={cn(
                 'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
                 active
-                  ? 'border-border bg-card/90'
-                  : 'border-transparent bg-card/50 text-muted-foreground opacity-60',
+                  ? 'map-toolbar-surface border'
+                  : 'map-toolbar-surface border opacity-60 text-muted-foreground',
               )}
             >
               <span
@@ -159,7 +159,7 @@ export function MapToolbar({
                 'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
                 active
                   ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_16%,transparent)]'
-                  : 'border-border bg-card/50 text-muted-foreground',
+                  : 'map-toolbar-surface border text-muted-foreground',
               )}
             >
               <span aria-hidden>{COUNTRY_META[c].flag}</span>
