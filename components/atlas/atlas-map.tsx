@@ -81,6 +81,157 @@ type EffEdge = {
   aggregated: boolean
 }
 
+const AUTO_LAYOUT = {
+  columnGap: 285,
+  rowGap: 118,
+  originX: 80,
+  originY: 110,
+} as const
+
+/**
+ * Layout por capas para lectura izquierda→derecha.
+ * - Usa las conexiones para armar columnas.
+ * - Dentro de cada columna conserva como desempate la prioridad visual manual
+ *   existente: arriba→abajo y, en la misma fila, izquierda→derecha.
+ * - Hace barridos baricéntricos para reducir cruces entre columnas.
+ */
+function buildAutoLayout(
+  currentNodes: Node[],
+  currentEdges: EffEdge[],
+  visibleIds: Set<string>,
+): Map<string, { x: number; y: number }> {
+  const visible = currentNodes.filter((n) => visibleIds.has(n.id))
+  if (visible.length === 0) return new Map()
+
+  const nodeById = new Map(visible.map((n) => [n.id, n]))
+  const manualOrder = [...visible]
+    .sort((a, b) => {
+      const ay = Math.round(a.position.y / 40)
+      const by = Math.round(b.position.y / 40)
+      if (ay !== by) return ay - by
+      if (a.position.x !== b.position.x) return a.position.x - b.position.x
+      return a.id.localeCompare(b.id)
+    })
+    .map((n, i) => [n.id, i] as const)
+  const manualRank = new Map(manualOrder)
+
+  const outgoing = new Map<string, string[]>()
+  const incoming = new Map<string, string[]>()
+  const indegree = new Map<string, number>()
+  for (const n of visible) {
+    outgoing.set(n.id, [])
+    incoming.set(n.id, [])
+    indegree.set(n.id, 0)
+  }
+
+  // Evitamos duplicados; las aristas sólo participan si ambos extremos están visibles.
+  const seen = new Set<string>()
+  for (const edge of currentEdges) {
+    if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) continue
+    if (!nodeById.has(edge.source) || !nodeById.has(edge.target)) continue
+    const key = `${edge.source}|${edge.target}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    outgoing.get(edge.source)?.push(edge.target)
+    incoming.get(edge.target)?.push(edge.source)
+    indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1)
+  }
+
+  // Kahn estable: cuando hay alternativas mantiene la prioridad visual manual.
+  const queue = visible
+    .filter((n) => (indegree.get(n.id) ?? 0) === 0)
+    .sort((a, b) => (manualRank.get(a.id) ?? 0) - (manualRank.get(b.id) ?? 0))
+    .map((n) => n.id)
+
+  const layer = new Map<string, number>()
+  for (const id of queue) layer.set(id, 0)
+  const processed = new Set<string>()
+
+  while (queue.length) {
+    const id = queue.shift() as string
+    processed.add(id)
+    const nextLayer = (layer.get(id) ?? 0) + 1
+    for (const target of outgoing.get(id) ?? []) {
+      layer.set(target, Math.max(layer.get(target) ?? 0, nextLayer))
+      indegree.set(target, (indegree.get(target) ?? 1) - 1)
+      if ((indegree.get(target) ?? 0) === 0) {
+        queue.push(target)
+        queue.sort((a, b) => (manualRank.get(a) ?? 0) - (manualRank.get(b) ?? 0))
+      }
+    }
+  }
+
+  // Los ciclos no tienen orden topológico puro. Los ubicamos cerca de sus vecinos
+  // ya resueltos y usamos la posición manual como desempate, sin bloquear el layout.
+  const unresolved = visible
+    .filter((n) => !processed.has(n.id))
+    .sort((a, b) => (manualRank.get(a.id) ?? 0) - (manualRank.get(b.id) ?? 0))
+  for (const n of unresolved) {
+    const neighbourLayers = [
+      ...(incoming.get(n.id) ?? []).map((id) => layer.get(id)).filter((v): v is number => v != null),
+      ...(outgoing.get(n.id) ?? []).map((id) => layer.get(id)).filter((v): v is number => v != null),
+    ]
+    if (neighbourLayers.length) {
+      layer.set(n.id, Math.max(0, Math.round(neighbourLayers.reduce((a, b) => a + b, 0) / neighbourLayers.length)))
+    } else {
+      layer.set(n.id, Math.max(0, Math.round(n.position.x / AUTO_LAYOUT.columnGap)))
+    }
+  }
+
+  const maxLayer = Math.max(...visible.map((n) => layer.get(n.id) ?? 0))
+  const columns: string[][] = Array.from({ length: maxLayer + 1 }, () => [])
+  for (const n of visible) columns[layer.get(n.id) ?? 0].push(n.id)
+  for (const col of columns) col.sort((a, b) => (manualRank.get(a) ?? 0) - (manualRank.get(b) ?? 0))
+
+  const indexInColumns = () => {
+    const result = new Map<string, number>()
+    for (const col of columns) col.forEach((id, i) => result.set(id, i))
+    return result
+  }
+
+  const reorder = (columnIndex: number, neighbourDirection: 'prev' | 'next') => {
+    const col = columns[columnIndex]
+    if (col.length < 2) return
+    const index = indexInColumns()
+    const scored = col.map((id) => {
+      const neighbours =
+        neighbourDirection === 'prev' ? (incoming.get(id) ?? []) : (outgoing.get(id) ?? [])
+      const usable = neighbours.filter((n) => {
+        const neighbourLayer = layer.get(n)
+        return neighbourDirection === 'prev'
+          ? neighbourLayer === columnIndex - 1
+          : neighbourLayer === columnIndex + 1
+      })
+      const barycenter = usable.length
+        ? usable.reduce((sum, n) => sum + (index.get(n) ?? 0), 0) / usable.length
+        : Number.POSITIVE_INFINITY
+      return { id, barycenter, manual: manualRank.get(id) ?? 0 }
+    })
+    scored.sort((a, b) => {
+      if (a.barycenter !== b.barycenter) return a.barycenter - b.barycenter
+      return a.manual - b.manual
+    })
+    columns[columnIndex] = scored.map((x) => x.id)
+  }
+
+  // Alternar sentidos ayuda a reducir cruces sin perder estabilidad visual.
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 1; i < columns.length; i++) reorder(i, 'prev')
+    for (let i = columns.length - 2; i >= 0; i--) reorder(i, 'next')
+  }
+
+  const positions = new Map<string, { x: number; y: number }>()
+  columns.forEach((col, xIndex) => {
+    col.forEach((id, yIndex) => {
+      positions.set(id, {
+        x: AUTO_LAYOUT.originX + xIndex * AUTO_LAYOUT.columnGap,
+        y: AUTO_LAYOUT.originY + yIndex * AUTO_LAYOUT.rowGap,
+      })
+    })
+  })
+  return positions
+}
+
 function MapInner() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [archimateFor, setArchimateFor] = useState<string | null>(null)
@@ -227,6 +378,30 @@ function MapInner() {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  const autoArrange = useCallback(() => {
+    const positions = buildAutoLayout(nodes, effectiveEdges, visibleIds)
+    if (!positions.size) return
+
+    setSelectedId(null)
+    setOrient((prev) => {
+      const next = { ...prev }
+      for (const id of visibleIds) next[id] = 'h'
+      return next
+    })
+    setEdgeHandles({})
+
+    setNodes((prev) =>
+      prev.map((node) => {
+        const position = positions.get(node.id)
+        return position ? { ...node, position } : node
+      }),
+    )
+
+    requestAnimationFrame(() => {
+      void fitView({ duration: 500, padding: 0.15 })
+    })
+  }, [nodes, effectiveEdges, visibleIds, setNodes, fitView])
 
   // Clear selection if the selected node becomes hidden
   useEffect(() => {
@@ -395,6 +570,7 @@ function MapInner() {
             setSelectedId(null)
             void fitView({ duration: 500, padding: 0.15 })
           }}
+          onArrange={autoArrange}
           nodeCount={visibleIds.size}
           totalCount={ATLAS_NODES.length}
         />
@@ -417,6 +593,8 @@ function MapInner() {
           }}
           fitView
           fitViewOptions={{ padding: 0.15 }}
+          snapToGrid
+          snapGrid={[20, 20]}
           minZoom={0.15}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
