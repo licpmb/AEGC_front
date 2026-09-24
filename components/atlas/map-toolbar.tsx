@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Maximize2, GitBranch, AlertTriangle } from 'lucide-react'
+import { Search, Maximize2, GitBranch, AlertTriangle, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -27,12 +27,14 @@ export function MapToolbar({
   filters,
   onChange,
   onFit,
+  onArrange,
   nodeCount,
   totalCount,
 }: {
   filters: MapFilters
   onChange: (f: MapFilters) => void
   onFit: () => void
+  onArrange: () => void
   nodeCount: number
   totalCount: number
 }) {
@@ -103,6 +105,17 @@ export function MapToolbar({
         >
           <AlertTriangle size={13} />
           Solo con issues
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onArrange}
+          title="Ordenar automáticamente en cuadrícula, priorizando el flujo de izquierda a derecha"
+          className="map-toolbar-surface h-9 backdrop-blur-sm"
+        >
+          <LayoutGrid size={13} />
+          Ordenar
         </Button>
 
         <Button
