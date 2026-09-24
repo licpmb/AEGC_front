@@ -52,128 +52,134 @@
 :root,
 .dark {
   color-scheme: dark;
-  --background: #2b3440;
-  --foreground: oklch(0.95 0.008 264);
-  --card: #34404d;
-  --card-foreground: oklch(0.95 0.008 264);
-  --popover: #374350;
-  --popover-foreground: oklch(0.95 0.008 264);
-  --primary: oklch(0.68 0.155 253);
-  --primary-foreground: oklch(0.15 0.02 264);
-  --secondary: #3d4957;
-  --secondary-foreground: oklch(0.95 0.008 264);
-  --muted: #3a4552;
-  --muted-foreground: oklch(0.68 0.02 264);
-  --accent: #445263;
-  --accent-foreground: oklch(0.96 0.008 264);
-  --destructive: oklch(0.63 0.2 22);
-  --border: oklch(0.98 0.01 264 / 12%);
-  --input: oklch(0.98 0.01 264 / 14%);
-  --ring: oklch(0.68 0.155 253);
 
-  /* Domain colors — load bearing, they encode node type on the map */
-  --chart-1: oklch(0.76 0.14 72); /* core / SAP */
-  --chart-2: oklch(0.68 0.17 305); /* integración / CPI */
-  --chart-3: oklch(0.68 0.155 253); /* interfaz / app */
-  --chart-4: oklch(0.74 0.12 192); /* datos */
-  --chart-5: oklch(0.68 0.18 28); /* repos / issues */
+  /* Technology dark mode: deep slate, never pure black. */
+  --background: #18212B;
+  --foreground: #F3F7FA;
+  --card: #202B36;
+  --card-foreground: #F3F7FA;
+  --popover: #24313D;
+  --popover-foreground: #F3F7FA;
+
+  --primary: #5B9CE6;
+  --primary-foreground: #0E1720;
+  --secondary: #2A3744;
+  --secondary-foreground: #EEF3F7;
+  --muted: #26323E;
+  --muted-foreground: #A7B3BF;
+  --accent: #304050;
+  --accent-foreground: #F4F8FB;
+  --destructive: #E2686E;
+
+  --border: #344352;
+  --input: #3A4958;
+  --ring: #6AA6E8;
+
+  --chart-1: #E1B85B;
+  --chart-2: #A78BCA;
+  --chart-3: #6FA9E2;
+  --chart-4: #6EB7AD;
+  --chart-5: #DF6F75;
 
   --radius: 0.5rem;
-  --sidebar: #313b47;
-  --sidebar-foreground: oklch(0.95 0.008 264);
-  --sidebar-primary: oklch(0.68 0.155 253);
-  --sidebar-primary-foreground: oklch(0.15 0.02 264);
-  --sidebar-accent: #43505f;
-  --sidebar-accent-foreground: oklch(0.96 0.008 264);
-  --sidebar-border: oklch(0.98 0.01 264 / 12%);
-  --sidebar-ring: oklch(0.68 0.155 253);
-  --archi-canvas: #111820;
-  --archi-group: #253c50;
-  --archi-line: #c1d3e7;
-  --archi-flow: #5dd4ff;
+  --sidebar: #1D2732;
+  --sidebar-foreground: #F3F7FA;
+  --sidebar-primary: #5B9CE6;
+  --sidebar-primary-foreground: #0E1720;
+  --sidebar-accent: #2A3744;
+  --sidebar-accent-foreground: #F4F8FB;
+  --sidebar-border: #344352;
+  --sidebar-ring: #6AA6E8;
 
-  /* Map node surfaces: explicit contrast instead of translucent white cards. */
-  --map-node-core-bg: #75663f;
-  --map-node-integracion-bg: #6a587d;
-  --map-node-aplicacion-bg: #526f8b;
-  --map-node-datos-bg: #507b78;
-  --map-node-core-border: #d4aa4c;
-  --map-node-integracion-border: #b497d0;
-  --map-node-aplicacion-border: #82acd2;
-  --map-node-datos-border: #77b7b0;
-  --map-node-title: #ffffff;
-  --map-node-meta: #eef3f8;
-  --map-node-badge-bg: rgba(255, 255, 255, 0.07);
-  --map-node-badge-border: rgba(255, 255, 255, 0.18);
-  --flow-injection: #79A9CF;
-  --flow-extraction: #78B8AF;
-  --flow-bidirectional: #AE93CB;
-  --flow-neutral: #6E7A86;
-  --map-grid: #46515D;
+  --archi-canvas: #1D2731;
+  --archi-group: #263746;
+  --archi-line: #C2CFDA;
+  --archi-flow: #6DB5D9;
+
+  --map-node-core-bg: #4B4229;
+  --map-node-integracion-bg: #42384F;
+  --map-node-aplicacion-bg: #304A61;
+  --map-node-datos-bg: #2F514E;
+  --map-node-core-border: #D5AE55;
+  --map-node-integracion-border: #9F86BF;
+  --map-node-aplicacion-border: #70A5D5;
+  --map-node-datos-border: #6FB0A7;
+  --map-node-title: #F8FAFC;
+  --map-node-meta: #D6DFE7;
+  --map-node-badge-bg: rgba(255, 255, 255, 0.08);
+  --map-node-badge-border: rgba(255, 255, 255, 0.17);
+
+  --flow-injection: #6EA7DC;
+  --flow-extraction: #6DB0A6;
+  --flow-bidirectional: #A08AC0;
+  --flow-neutral: #7D8995;
+  --map-grid: #3A4754;
 }
 
 .light {
   color-scheme: light;
 
-  /* Warm grey-rose canvas: visually separates the map from controls without competing with nodes. */
-  --background: #F2ECEF;
-  --foreground: #28323F;
-  --card: #FCFAFB;
-  --card-foreground: #28323F;
-  --popover: #FFFDFE;
-  --popover-foreground: #28323F;
+  /* Technology light mode: bright neutral canvas with cool-blue structure. */
+  --background: #F6F8FB;
+  --foreground: #17212B;
+  --card: #FFFFFF;
+  --card-foreground: #17212B;
+  --popover: #FFFFFF;
+  --popover-foreground: #17212B;
 
-  --primary: #4F789A;
+  --primary: #4C88C7;
   --primary-foreground: #FFFFFF;
-  --secondary: #EAE3E7;
-  --secondary-foreground: #34414F;
-  --muted: #E8E0E4;
-  --muted-foreground: #65707C;
-  --accent: #E2D9DE;
-  --accent-foreground: #2F3B48;
-  --destructive: #C4545B;
+  --secondary: #EEF2F6;
+  --secondary-foreground: #26323D;
+  --muted: #EDF1F5;
+  --muted-foreground: #667483;
+  --accent: #E7EDF4;
+  --accent-foreground: #22303D;
+  --destructive: #C94F58;
 
-  --border: #D3C9CE;
-  --input: #CEC3C9;
-  --ring: #6E91AE;
+  --border: #D6DEE8;
+  --input: #CCD6E1;
+  --ring: #6B9BC8;
 
-  --sidebar: #F9F6F8;
-  --sidebar-foreground: #28323F;
-  --sidebar-primary: #4F789A;
+  /* Same semantic domains in both themes, adapted for luminance. */
+  --chart-1: #D7A846;
+  --chart-2: #9678B6;
+  --chart-3: #5F96C7;
+  --chart-4: #559A91;
+  --chart-5: #CA5B62;
+
+  --sidebar: #F2F5F9;
+  --sidebar-foreground: #17212B;
+  --sidebar-primary: #4C88C7;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EDE6EA;
-  --sidebar-accent-foreground: #2F3B48;
-  --sidebar-border: #D8CED3;
-  --sidebar-ring: #6E91AE;
+  --sidebar-accent: #E6ECF3;
+  --sidebar-accent-foreground: #22303D;
+  --sidebar-border: #D6DEE8;
+  --sidebar-ring: #6B9BC8;
 
-  /* Archi editor remains neutral so native Archi colours stay visually truthful. */
-  --archi-canvas: #FBFAFA;
-  --archi-group: #EEF1F3;
-  --archi-line: #536270;
-  --archi-flow: #4E839D;
+  --archi-canvas: #FCFDFE;
+  --archi-group: #EEF3F7;
+  --archi-line: #4B5967;
+  --archi-flow: #4D89A7;
 
-  /* Domain palette: light, calm, distinguishable, and dark-text safe. */
-  --map-node-core-bg: #F2E1B8;
-  --map-node-integracion-bg: #E3D6EC;
-  --map-node-aplicacion-bg: #D5E5F2;
-  --map-node-datos-bg: #D4E7E2;
+  --map-node-core-bg: #FFF3D6;
+  --map-node-integracion-bg: #F1EAFA;
+  --map-node-aplicacion-bg: #E8F2FC;
+  --map-node-datos-bg: #E7F5F2;
+  --map-node-core-border: #D5A84A;
+  --map-node-integracion-border: #9C7DB9;
+  --map-node-aplicacion-border: #6699C8;
+  --map-node-datos-border: #5D9F96;
+  --map-node-title: #1C2732;
+  --map-node-meta: #586777;
+  --map-node-badge-bg: rgba(255, 255, 255, 0.72);
+  --map-node-badge-border: rgba(72, 88, 104, 0.18);
 
-  --map-node-core-border: #C79D43;
-  --map-node-integracion-border: #A783B8;
-  --map-node-aplicacion-border: #6F9BBC;
-  --map-node-datos-border: #649E96;
-
-  --map-node-title: #26313E;
-  --map-node-meta: #596775;
-  --map-node-badge-bg: rgba(255, 255, 255, 0.52);
-  --map-node-badge-border: rgba(77, 91, 105, 0.20);
-
-  /* Process-flow palette: muted enough for overview, vivid enough when focused. */
-  --flow-injection: #628FB3;
-  --flow-extraction: #5F9D96;
-  --flow-bidirectional: #8B76A7;
-  --flow-neutral: #98A0A8;
-  --map-grid: #CFC4CA;
+  --flow-injection: #5F91BE;
+  --flow-extraction: #5A9B92;
+  --flow-bidirectional: #8F75AA;
+  --flow-neutral: #98A3AE;
+  --map-grid: #D7DEE7;
 }
 
 @layer base {
@@ -260,7 +266,9 @@ button svg {
   background: var(--background);
 }
 .light .react-flow.map-flow {
-  background: linear-gradient(180deg, #F4EFF1 0%, #F0E9EC 100%);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(91, 156, 230, 0.045), transparent 34%),
+    linear-gradient(180deg, #F8FAFC 0%, #F4F7FA 100%);
 }
 .react-flow.map-flow .react-flow__background pattern circle {
   fill: var(--map-grid);
