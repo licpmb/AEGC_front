@@ -15,6 +15,8 @@ export type NodeKind =
 
 export type NodeStatus = 'prod' | 'staging' | 'dev' | 'deprecated'
 
+export type NodeGroup = 'core' | 'plataforma' | 'integracion' | 'aplicacion' | 'datos' | 'externo'
+
 export type FlowDirection = 'extraccion' | 'inyeccion' | 'bidireccional'
 
 /** País donde vive el desarrollo. Sin país = compartido / regional. */
@@ -170,14 +172,14 @@ export interface AtlasEdge {
 
 export const KIND_META: Record<
   NodeKind,
-  { label: string; color: string; group: 'core' | 'integracion' | 'aplicacion' | 'datos' }
+  { label: string; color: string; group: NodeGroup }
 > = {
   erp: { label: 'ERP', color: 'var(--chart-1)', group: 'core' },
-  dispatcher: { label: 'Web Dispatcher', color: 'var(--chart-1)', group: 'core' },
-  middleware: { label: 'Middleware', color: 'var(--chart-2)', group: 'integracion' },
-  external: { label: 'Externo', color: 'var(--chart-2)', group: 'integracion' },
-  server: { label: 'Servidor', color: 'var(--chart-2)', group: 'integracion' },
-  interface: { label: 'Interfaz', color: 'var(--chart-3)', group: 'aplicacion' },
+  dispatcher: { label: 'Web Dispatcher', color: 'var(--chart-2)', group: 'plataforma' },
+  middleware: { label: 'Middleware', color: 'var(--chart-2)', group: 'plataforma' },
+  external: { label: 'Externo', color: 'var(--chart-5)', group: 'externo' },
+  server: { label: 'Servidor', color: 'var(--chart-2)', group: 'plataforma' },
+  interface: { label: 'Interfaz', color: 'var(--chart-3)', group: 'integracion' },
   front: { label: 'Front', color: 'var(--chart-3)', group: 'aplicacion' },
   gateway: { label: 'Gateway', color: 'var(--chart-3)', group: 'aplicacion' },
   api: { label: 'API', color: 'var(--chart-3)', group: 'aplicacion' },
@@ -187,12 +189,14 @@ export const KIND_META: Record<
   builder: { label: 'Builder', color: 'var(--chart-4)', group: 'datos' },
 }
 
-export const GROUP_META = {
+export const GROUP_META: Record<NodeGroup, { label: string; color: string }> = {
   core: { label: 'Core SAP', color: 'var(--chart-1)' },
-  integracion: { label: 'Integración', color: 'var(--chart-2)' },
-  aplicacion: { label: 'Aplicaciones', color: 'var(--chart-3)' },
+  plataforma: { label: 'Plataforma / Middleware', color: 'var(--chart-2)' },
+  integracion: { label: 'Integraciones', color: 'var(--chart-3)' },
+  aplicacion: { label: 'Componentes de aplicación', color: 'var(--primary)' },
   datos: { label: 'Datos & Analytics', color: 'var(--chart-4)' },
-} as const
+  externo: { label: 'Sistemas externos', color: 'var(--chart-5)' },
+}
 
 export const COUNTRY_META: Record<CountryCode, { label: string; flag: string }> = {
   AR: { label: 'Argentina', flag: '🇦🇷' },
