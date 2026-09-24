@@ -203,6 +203,7 @@ type UndoSnapshot = {
     style?: Node['style']
   }>
   edgeHandles: Record<string, { sourceHandle?: string; targetHandle?: string }>
+  edgeEndpoints: Record<string, { source: string; target: string }>
 }
 
 type PersistedLayout = UndoSnapshot & {
@@ -225,6 +226,9 @@ function MapInner() {
   // reruteo manual de flechas: por id de arista → handles elegidos
   const [edgeHandles, setEdgeHandles] = useState<
     Record<string, { sourceHandle?: string; targetHandle?: string }>
+  >({})
+  const [edgeEndpoints, setEdgeEndpoints] = useState<
+    Record<string, { source: string; target: string }>
   >({})
   const [filters, setFilters] = useState<MapFilters>({
     query: '',
@@ -274,10 +278,13 @@ function MapInner() {
     const seen = new Set<string>()
     const out: EffEdge[] = []
     for (const e of ATLAS_EDGES) {
-      const s = representative(e.source, collapsed)
-      const t = representative(e.target, collapsed)
+      const endpointOverride = edgeEndpoints[e.id]
+      const rawSource = endpointOverride?.source ?? e.source
+      const rawTarget = endpointOverride?.target ?? e.target
+      const s = representative(rawSource, collapsed)
+      const t = representative(rawTarget, collapsed)
       if (s === t) continue
-      const aggregated = s !== e.source || t !== e.target
+      const aggregated = s !== rawSource || t !== rawTarget
       const key = `${s}|${t}|${e.direction}`
       if (seen.has(key)) continue
       seen.add(key)
@@ -292,7 +299,7 @@ function MapInner() {
       })
     }
     return out
-  }, [collapsed])
+  }, [collapsed, edgeEndpoints])
 
   // Which nodes pass the filters (collapse + group + country + direction + query + issues)
   const visibleIds = useMemo(() => {
@@ -359,12 +366,14 @@ function MapInner() {
   const undoingRef = useRef(false)
   const nodesRef = useRef<Node[]>(nodes)
   const edgeHandlesRef = useRef(edgeHandles)
+  const edgeEndpointsRef = useRef(edgeEndpoints)
   const persistenceLoadedRef = useRef(false)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Refs vivos para que el callback de historial sea estable y no dispare efectos.
   nodesRef.current = nodes
   edgeHandlesRef.current = edgeHandles
+  edgeEndpointsRef.current = edgeEndpoints
 
   // Recupera el layout editado en este navegador: posiciones, tamaños y puntos
   // manuales de conexión. Se aplica una sola vez al montar el mapa.
@@ -393,6 +402,15 @@ function MapInner() {
             edgeHandlesRef.current = restoredHandles
             setEdgeHandles(restoredHandles)
           }
+          if (saved.edgeEndpoints && typeof saved.edgeEndpoints === 'object') {
+            const restoredEndpoints = Object.fromEntries(
+              Object.entries(saved.edgeEndpoints)
+                .filter(([, value]) => value && typeof value.source === 'string' && typeof value.target === 'string')
+                .map(([id, value]) => [id, { source: value.source, target: value.target }]),
+            )
+            edgeEndpointsRef.current = restoredEndpoints
+            setEdgeEndpoints(restoredEndpoints)
+          }
         }
       }
     } catch {
@@ -416,6 +434,9 @@ function MapInner() {
         edgeHandles: Object.fromEntries(
           Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
         ),
+        edgeEndpoints: Object.fromEntries(
+          Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
+        ),
       }
       window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
     } catch {
@@ -436,7 +457,7 @@ function MapInner() {
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
-  }, [nodes, edgeHandles, persistLayoutNow])
+  }, [nodes, edgeHandles, edgeEndpoints, persistLayoutNow])
 
   // Flush de seguridad: si el usuario sale, recarga o cierra la pestaña antes del
   // debounce, persistimos el último estado visible del mapa.
@@ -467,6 +488,9 @@ function MapInner() {
       })),
       edgeHandles: Object.fromEntries(
         Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
+      ),
+      edgeEndpoints: Object.fromEntries(
+        Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
       ),
     }
 
@@ -500,6 +524,11 @@ function MapInner() {
     )
     edgeHandlesRef.current = restoredHandles
     setEdgeHandles(restoredHandles)
+    const restoredEndpoints = Object.fromEntries(
+      Object.entries(snapshot.edgeEndpoints ?? {}).map(([id, endpoints]) => [id, { ...endpoints }]),
+    )
+    edgeEndpointsRef.current = restoredEndpoints
+    setEdgeEndpoints(restoredEndpoints)
     requestAnimationFrame(() => {
       undoingRef.current = false
     })
@@ -797,20 +826,36 @@ function MapInner() {
     [collapsed],
   )
 
-  // Reruteo manual: solo permite mover a qué handle/lado se engancha la flecha,
-  // manteniendo los mismos nodos de origen y destino.
+  // Edición real de relaciones: se puede cambiar tanto el nodo de origen/destino
+  // como el lado (handle) por el que entra o sale la flecha.
   const onReconnect = useCallback((oldEdge: Edge, newConn: Connection) => {
-    if (newConn.source !== oldEdge.source || newConn.target !== oldEdge.target) return
+    const source = newConn.source
+    const target = newConn.target
+    if (!source || !target || source === target) return
+
+    const baseId = oldEdge.id.startsWith('eff-') ? oldEdge.id.slice(4) : oldEdge.id
     pushUndoSnapshot()
-    setEdgeHandles((prev) => ({
-      ...prev,
-      [oldEdge.id]: {
-        sourceHandle:
-          newConn.sourceHandle ?? prev[oldEdge.id]?.sourceHandle ?? oldEdge.sourceHandle ?? undefined,
-        targetHandle:
-          newConn.targetHandle ?? prev[oldEdge.id]?.targetHandle ?? oldEdge.targetHandle ?? undefined,
-      },
-    }))
+
+    setEdgeEndpoints((prev) => {
+      const next = { ...prev, [baseId]: { source, target } }
+      edgeEndpointsRef.current = next
+      return next
+    })
+
+    setEdgeHandles((prev) => {
+      const next = {
+        ...prev,
+        [oldEdge.id]: {
+          sourceHandle:
+            newConn.sourceHandle ?? prev[oldEdge.id]?.sourceHandle ?? oldEdge.sourceHandle ?? undefined,
+          targetHandle:
+            newConn.targetHandle ?? prev[oldEdge.id]?.targetHandle ?? oldEdge.targetHandle ?? undefined,
+        },
+      }
+      edgeHandlesRef.current = next
+      return next
+    })
+
     setSelectedEdgeId(oldEdge.id)
     requestAnimationFrame(() => persistLayoutNow())
   }, [pushUndoSnapshot, persistLayoutNow])
@@ -875,6 +920,12 @@ function MapInner() {
           totalCount={ATLAS_NODES.length}
         />
 
+        {selectedEdgeId && (
+          <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-md border border-border bg-card/95 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur-sm">
+            Relación seleccionada: arrastrá cualquiera de sus extremos hasta otro nodo para cambiar origen o destino.
+          </div>
+        )}
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -899,6 +950,7 @@ function MapInner() {
           onEdgeDoubleClick={handleEdgeDoubleClick}
           onReconnect={onReconnect}
           edgesReconnectable
+          reconnectRadius={24}
           selectionOnDrag
           selectionMode={SelectionMode.Partial}
           panOnDrag={[1, 2]}
