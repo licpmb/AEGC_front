@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent } from 'react'
 import { FileUp, Search, ZoomIn, ZoomOut, RotateCcw, AlertTriangle, Download } from 'lucide-react'
 import { connectionPoints, parseNativeArchi, type DiagramObject, type NativeModel } from '@/lib/native-archi'
-import { exportArchiChanges, loadArchiDraft, loadUniverse, saveArchiDraft, type ArchiEdit, type UniverseState } from '@/lib/archi-universe'
+import { exportArchiChanges, loadArchiDraft, saveArchiDraft, type ArchiEdit } from '@/lib/archi-universe'
 import { ArchiUniversePanel } from './archi-universe-panel'
-import { UniverseGraph } from './universe-graph'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -91,7 +90,6 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
 }) {
   const [model, setModel] = useState<NativeModel | null>(initialModel)
   const [originalXml, setOriginalXml] = useState(initialXml)
-  const [universe, setUniverse] = useState<UniverseState>(() => initialModel ? loadUniverse(initialModel.id) : { modelId: '', assets: [] })
   const [edits, setEdits] = useState<ArchiEdit[]>(() => initialModel && initialXml ? loadArchiDraft(initialModel.id, initialXml) : [])
   const [viewId, setViewId] = useState<string | null>(() => initialModel ? (initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null) : null)
   const [selected, setSelected] = useState<DiagramObject | null>(null)
@@ -100,7 +98,6 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   const [scale, setScale] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState<'archi' | 'universe'>('archi')
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
   const [fileHover, setFileHover] = useState(false)
   const [drag, setDrag] = useState<{ id: string; startX: number; startY: number; originX: number; originY: number; x: number; y: number } | null>(null)
@@ -109,7 +106,6 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     if (!initialModel || model?.id === initialModel.id) return
     setModel(initialModel)
     setOriginalXml(initialXml)
-    setUniverse(loadUniverse(initialModel.id))
     setEdits(loadArchiDraft(initialModel.id, initialXml))
     setViewId(initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null)
   }, [initialModel, initialXml, model?.id])
@@ -154,12 +150,10 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       setModel(parsed)
       setOriginalXml(source)
       onModelLoaded?.(parsed, source)
-      setUniverse(loadUniverse(parsed.id))
       setEdits([])
       setViewId(parsed.views.some((v) => v.id === KETAN) ? KETAN : parsed.views[0].id)
       setSelected(null)
       setSelectedConnectionId(null)
-      setMode('archi')
       setScale(1)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo abrir el modelo.')
@@ -211,7 +205,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
   }
 
   function startMove(event: PointerEvent<SVGGElement>, o: DiagramObject) {
-    if (event.button !== 0 || !viewId || mode !== 'archi' || containerIds.has(o.id)) return
+    if (event.button !== 0 || !viewId || containerIds.has(o.id)) return
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId)
     const next = { id: o.id, startX: event.clientX, startY: event.clientY, originX: o.x, originY: o.y, x: o.x, y: o.y }
     dragRef.current = next; setDrag(next); setSelected(o)
@@ -378,25 +372,20 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-          <div className="mr-auto flex items-center gap-3"><button onClick={() => setMode('archi')} className={`rounded px-2 py-1 text-[12px] ${mode === 'archi' ? 'bg-accent font-semibold' : 'text-muted-foreground'}`}>Vista Archi</button>
-            <button onClick={() => setMode('universe')} className={`rounded px-2 py-1 text-[12px] ${mode === 'universe' ? 'bg-accent font-semibold' : 'text-muted-foreground'}`}>Universo vinculado</button>
-            <span className="text-[11px] text-muted-foreground">{mode === 'archi' ? `${view?.name} · ${objects.length} figuras · ${connections.length} conexiones` : `${universe.assets.length} activos · relaciones por IDs`}</span></div>
-          {mode === 'archi' && <>
+          <div className="mr-auto flex items-center gap-3">
+            <span className="rounded bg-accent px-2 py-1 text-[12px] font-semibold">Vista Archi</span>
+            <span className="text-[11px] text-muted-foreground">{`${view?.name} · ${objects.length} figuras · ${connections.length} conexiones`}</span>
+          </div>
           {selectedConnectionId && <Button variant="outline" size="sm" onClick={addBend}>Añadir pliegue</Button>}
-          {edits.length > 0 && <span className="rounded border border-primary/40 px-2 py-1 text-[11px] text-foreground">{edits.length} cambios · descargá desde «Cambios»</span>}
+          {edits.length > 0 && <span className="rounded border border-primary/40 px-2 py-1 text-[11px] text-foreground">{edits.length} cambios · revisalos en «Cambios»</span>}
           <div className="relative"><Search size={13} className="absolute left-2 top-2.5 text-muted-foreground"/><Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar componente" aria-label="Buscar componente" className="h-8 w-48 pl-7 text-xs"/></div>
           <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.max(.4, s / 1.25))} aria-label="Alejar"><ZoomOut size={14}/></Button>
           <span className="w-10 text-center text-[11px]">{Math.round(scale * 100)}%</span>
           <Button variant="outline" size="icon" onClick={() => setScale((s) => Math.min(3, s * 1.25))} aria-label="Acercar"><ZoomIn size={14}/></Button>
           <Button variant="outline" size="icon" onClick={() => setScale(1)} aria-label="Restablecer zoom"><RotateCcw size={14}/></Button>
-          </>}
         </div>
-        {mode === 'archi' && matches.length > 0 && <div className="flex max-h-24 flex-wrap gap-1 overflow-auto border-b border-border px-3 py-2">{matches.slice(0, 30).map((o) => <button key={o.id} onClick={() => setSelected(o)} className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent">{o.label}</button>)}{matches.length > 30 && <span className="text-[11px]">+{matches.length - 30}</span>}</div>}
-        {mode === 'universe' ? <div className="min-h-0 flex-1"><UniverseGraph model={model} universe={universe} onAsset={(id) => {
-          const asset = universe.assets.find((a) => a.id === id)
-          const match = model.views.flatMap((v) => v.objects.map((o) => ({ v, o }))).find(({ o }) => asset?.archiIds.includes(o.elementId ?? ''))
-          if (match) { setViewId(match.v.id); setSelected(match.o); setMode('archi') }
-        }}/></div> : <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
+        {matches.length > 0 && <div className="flex max-h-24 flex-wrap gap-1 overflow-auto border-b border-border px-3 py-2">{matches.slice(0, 30).map((o) => <button key={o.id} onClick={() => setSelected(o)} className="rounded border border-border px-2 py-1 text-[11px] hover:bg-accent">{o.label}</button>)}{matches.length > 30 && <span className="text-[11px]">+{matches.length - 30}</span>}</div>}
+        <div className="min-h-0 flex-1 overflow-auto bg-[var(--archi-canvas)]">
           {view && <svg width={Math.round(view.width * scale)} height={Math.round(view.height * scale)} viewBox={`0 0 ${view.width} ${view.height}`} role="img" aria-label={`Vista Archi ${view.name}`} className="block">
             <defs>
               <marker id="native-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 7 4 0 8 Z" fill="context-stroke"/></marker>
@@ -457,9 +446,9 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
                 const route = routeFor(selectedConnectionId).slice(1, -1); route[index] = { x, y }; updateRoute(selectedConnectionId, route)
               }}/>) }
           </svg>}
-        </div>}
+        </div>
       </section>
-      <ArchiUniversePanel model={model} selected={selected} viewId={viewId} xml={originalXml} universe={universe} setUniverse={setUniverse} edits={edits} setEdits={setEdits}/>
+      <ArchiUniversePanel model={model} selected={selected} viewId={viewId} xml={originalXml} edits={edits} setEdits={setEdits}/>
     </div>}
   </div>
 }
