@@ -831,6 +831,32 @@ function MapInner() {
     setEndpointsView({ nodeId: owner, connectionToId: owner === s ? t : s })
   }, [])
 
+  const handleSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
+    const ids = selectedNodes.map((node) => node.id)
+
+    setSelectedNodeIds((prev) => {
+      const active = new Set(ids)
+      const kept = prev.filter((id) => active.has(id))
+      const added = ids.filter((id) => !kept.includes(id))
+      const ordered = [...kept, ...added]
+
+      if (
+        ordered.length === prev.length &&
+        ordered.every((id, index) => id === prev[index])
+      ) return prev
+
+      return ordered
+    })
+
+    const nextSelectedId =
+      ids.length === 0 ? null :
+      ids.length === 1 ? ids[0] :
+      ids[ids.length - 1]
+
+    setSelectedId((prev) => prev === nextSelectedId ? prev : nextSelectedId)
+    setSelectedEdgeId((prev) => prev === null ? prev : null)
+  }, [])
+
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="relative min-w-0 flex-1">
@@ -877,25 +903,7 @@ function MapInner() {
           selectionMode={SelectionMode.Partial}
           panOnDrag={[1, 2]}
           multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
-          onSelectionChange={({ nodes: selectedNodes }) => {
-            const ids = selectedNodes.map((node) => node.id)
-            setSelectedNodeIds((prev) => {
-              const active = new Set(ids)
-              // Conserva el orden real en que el usuario fue seleccionando.
-              // React Flow devuelve los nodos en orden interno del grafo, no en
-              // orden de click; eso hacía que "el primero" cambiara solo.
-              const kept = prev.filter((id) => active.has(id))
-              const added = ids.filter((id) => !kept.includes(id))
-              const ordered = [...kept, ...added]
-
-              if (ordered.length === 0) setSelectedId(null)
-              else if (ordered.length === 1) setSelectedId(ordered[0])
-              else setSelectedId(ordered[ordered.length - 1])
-
-              return ordered
-            })
-            setSelectedEdgeId(null)
-          }}
+          onSelectionChange={handleSelectionChange}
           onPaneClick={() => {
             setSelectedId(null)
             setSelectedNodeIds([])
