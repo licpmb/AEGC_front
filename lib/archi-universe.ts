@@ -16,7 +16,10 @@ export interface UniverseState {
 export type ArchiEdit =
   | { kind: 'rename'; elementId: string; expectedName: string; name: string }
   | { kind: 'createElement'; id: string; name: string; elementType: 'ApplicationComponent' | 'ApplicationService' | 'DataObject' | 'Node' | 'SystemSoftware'; viewId?: string }
-  | { kind: 'createRelationship'; id: string; sourceId: string; targetId: string; relationshipType: 'FlowRelationship' | 'ServingRelationship' | 'AssociationRelationship'; viewId?: string }
+  | { kind: 'createRelationship'; id: string; sourceId: string; targetId: string; relationshipType:
+      'AccessRelationship' | 'AggregationRelationship' | 'AssignmentRelationship' | 'AssociationRelationship' |
+      'CompositionRelationship' | 'FlowRelationship' | 'InfluenceRelationship' | 'RealizationRelationship' |
+      'ServingRelationship' | 'SpecializationRelationship' | 'TriggeringRelationship'; viewId?: string }
   | { kind: 'moveFigure'; viewId: string; objectId: string; x: number; y: number }
   | { kind: 'routeConnection'; viewId: string; connectionId: string; points: Array<{ x: number; y: number }> }
 
