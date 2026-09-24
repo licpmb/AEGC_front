@@ -96,15 +96,15 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
         isVisible={Boolean(selected)}
         onResizeStart={() => onBeforeResize?.()}
         onResizeEnd={() => onAfterResize?.()}
-        minWidth={isHub ? 200 : 160}
-        minHeight={52}
+        minWidth={96}
+        minHeight={36}
         lineClassName="!border-[var(--chart-3)]"
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--chart-3)] !bg-background"
       />
       <div
         className={cn(
-          'group relative flex h-full w-full items-center gap-3 rounded-lg border backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
-          isHub ? 'px-4 py-3.5 min-w-56' : 'px-3 py-2.5 min-w-44',
+          'group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
+          isHub ? 'px-4 py-3.5' : 'px-3 py-2.5',
           dimmed && 'opacity-20 saturate-0',
           (selected || focused) && 'scale-[1.02]',
         )}
