@@ -19,7 +19,11 @@ interface Props {
 }
 
 const TYPES = ['ApplicationComponent', 'ApplicationService', 'DataObject', 'Node', 'SystemSoftware'] as const
-const REL_TYPES = ['FlowRelationship', 'ServingRelationship', 'AssociationRelationship'] as const
+const REL_TYPES = [
+  'AccessRelationship', 'AggregationRelationship', 'AssignmentRelationship', 'AssociationRelationship',
+  'CompositionRelationship', 'FlowRelationship', 'InfluenceRelationship', 'RealizationRelationship',
+  'ServingRelationship', 'SpecializationRelationship', 'TriggeringRelationship',
+] as const
 
 function normalized(value: string) {
   return value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
@@ -56,6 +60,45 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
     .filter((item) => item.score >= .34)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4), [element])
+
+  const linkedArchiIds = useMemo(() => new Set(universe.assets.flatMap((asset) => asset.archiIds)), [universe])
+  const linkCoverage = useMemo(() => {
+    const total = model.elements.size
+    const linkedCount = [...model.elements.keys()].filter((id) => linkedArchiIds.has(id)).length
+    return { total, linked: linkedCount, pending: Math.max(0, total - linkedCount) }
+  }, [model, linkedArchiIds])
+
+  function autoLinkHighConfidence() {
+    const claimedNodes = new Set(universe.assets.flatMap((asset) => asset.interfaceIds))
+    const claimedElements = new Set(universe.assets.flatMap((asset) => asset.archiIds))
+    const candidates = [...model.elements.values()]
+      .filter((item) => !claimedElements.has(item.id))
+      .map((item) => {
+        const ranked = ATLAS_NODES
+          .filter((node) => !claimedNodes.has(node.id))
+          .map((node) => ({ node, score: Math.max(similarity(item.name, node.label), ...(node.tech ?? []).map((tech) => similarity(item.name, tech))) }))
+          .sort((a, b) => b.score - a.score)
+        return { item, best: ranked[0], second: ranked[1] }
+      })
+      .filter(({ best, second }) => best && best.score >= .86 && (!second || best.score - second.score >= .12))
+
+    if (!candidates.length) {
+      setMessage('No hay coincidencias nuevas de alta confianza para vincular automáticamente.')
+      return
+    }
+
+    const assets = [...universe.assets]
+    for (const { item, best } of candidates) {
+      if (!best) continue
+      claimedNodes.add(best.node.id)
+      claimedElements.add(item.id)
+      const existing = assets.find((asset) => asset.interfaceIds.includes(best.node.id))
+      if (existing) existing.archiIds = [...new Set([...existing.archiIds, item.id])]
+      else assets.push({ id: `atlas:${best.node.id}`, name: best.node.label, kind: best.node.kind, archiIds: [item.id], interfaceIds: [best.node.id] })
+    }
+    update({ ...universe, assets })
+    setMessage(`${candidates.length} vínculos de alta confianza aplicados. Revisá los restantes manualmente.`)
+  }
 
   function update(next: UniverseState) {
     setUniverse(next)
@@ -153,7 +196,17 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
         <dl className="space-y-2"><div><dt className="text-muted-foreground">ID estable del modelo</dt><dd className="break-all font-mono text-[10px]">{element.id}</dd></div>
           <div><dt className="text-muted-foreground">Apariciones en vistas</dt><dd>{model.views.filter((v) => v.objects.some((o) => o.elementId === element.id)).length}</dd></div>
           <div><dt className="text-muted-foreground">Relaciones en el modelo</dt><dd>{related.length}</dd></div>
-          <div><dt className="text-muted-foreground">Activos vinculados</dt><dd>{linked.map((a) => a.name).join(', ') || 'Sin vincular'}</dd></div></dl>
+          <div><dt className="text-muted-foreground">Activo del universo</dt><dd>{linked.map((a) => a.name).join(', ') || 'Sin vincular'}</dd></div></dl>
+        <div className="space-y-2 rounded-md border border-border bg-background/55 p-2.5">
+          <div className="flex items-center justify-between gap-2"><h4 className="font-semibold">Vínculo con universo</h4>{linked.length > 0 && <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Vinculado</span>}</div>
+          {linked.length ? linked.map((asset) => <div key={asset.id} className="rounded border border-border bg-card px-2 py-1.5"><b>{asset.name}</b><p className="text-[10px] text-muted-foreground">{asset.kind} · {asset.interfaceIds.join(', ') || 'sin nodo de mapa'}</p></div>) :
+            suggestions.length ? <><p className="text-[10px] text-muted-foreground">Elegí una coincidencia; no hace falta cambiar de pestaña.</p>
+              <div className="space-y-1">{suggestions.slice(0,3).map(({ node, score }) => <button key={node.id} type="button" onClick={() => bindToAtlas(node.id)}
+                className="flex w-full items-center justify-between rounded border border-border bg-card px-2 py-1.5 text-left hover:bg-accent">
+                <span><b>{node.label}</b><span className="ml-1 text-muted-foreground">· {node.kind}</span></span>
+                <span className="font-mono text-[10px] text-muted-foreground">{Math.round(score * 100)}%</span>
+              </button>)}</div></> : <p className="text-[10px] text-muted-foreground">Sin sugerencias confiables. Usá la pestaña Universo para buscar o crear el vínculo.</p>}
+        </div>
         {element.documentation && <p className="whitespace-pre-wrap border-t border-border pt-3 text-muted-foreground">{element.documentation}</p>}
         {!!Object.keys(element.properties).length && <div className="border-t border-border pt-3"><strong>Propiedades</strong>{Object.entries(element.properties).map(([k, v]) => <p className="break-words" key={k}>{k}: {v}</p>)}</div>}
         <div className="space-y-2 border-t border-border pt-3"><h4 className="font-semibold">Editar elemento</h4>
@@ -167,7 +220,13 @@ export function ArchiUniversePanel({ model, selected, viewId, xml, universe, set
         <div className="border-t border-border pt-3"><strong>Relaciones y vecinos</strong><div className="mt-2 max-h-60 space-y-2 overflow-auto">{related.map((r) => <div className="rounded border border-border p-2" key={r.id}><span className="text-muted-foreground">{r.type.replace('Relationship', '')} · {r.source === element.id ? 'salida' : 'entrada'}</span><p>{model.elements.get(r.source === element.id ? r.target : r.source)?.name ?? '(referencia sin resolver)'}</p><code className="break-all text-[10px]">{r.id}</code></div>)}</div></div>
       </> : <p className="text-muted-foreground">Elegí un elemento de una vista para consultar sus relaciones reales, propiedades y vínculos con el universo.</p>)}
       {tab === 'universe' && <>
-        <div><h3 className="font-semibold">Activos del universo</h3><p className="mt-1 text-muted-foreground">Cada activo tiene un ID propio y puede vincular varios IDs de Archi e interfaces. Los vínculos se guardan en este navegador.</p></div>
+        <div><h3 className="font-semibold">Activos del universo</h3><p className="mt-1 text-muted-foreground">El vínculo se hace contra IDs estables. Seleccioná un elemento en Archi para vincularlo en un clic o resolvé coincidencias masivamente acá.</p></div>
+        <div className="rounded-md border border-border bg-background/55 p-3">
+          <div className="flex items-center justify-between"><div><b>Cobertura</b><p className="text-[10px] text-muted-foreground">{linkCoverage.linked} vinculados · {linkCoverage.pending} pendientes · {linkCoverage.total} elementos</p></div>
+            <span className="font-mono text-[12px] font-semibold">{linkCoverage.total ? Math.round(linkCoverage.linked / linkCoverage.total * 100) : 0}%</span></div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{width: `${linkCoverage.total ? linkCoverage.linked / linkCoverage.total * 100 : 0}%`}}/></div>
+          <Button className="mt-3 w-full" size="sm" variant="outline" onClick={autoLinkHighConfidence}>Vincular coincidencias de alta confianza</Button>
+        </div>
         {universe.assets.map((a) => {
           const neighbours = [...new Set([...model.relationships.values()].flatMap((r) =>
             a.archiIds.includes(r.source) ? [r.target] : a.archiIds.includes(r.target) ? [r.source] : []))]
