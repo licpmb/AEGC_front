@@ -48,6 +48,7 @@ export type AtlasFlowNodeData = {
   hiddenChildren?: number
   onToggleCollapse?: (id: string) => void
   onBeforeResize?: () => void
+  onAfterResize?: () => void
 }
 
 export function AtlasFlowNode({ data, selected }: NodeProps) {
@@ -63,6 +64,7 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
     hiddenChildren,
     onToggleCollapse,
     onBeforeResize,
+    onAfterResize,
   } = data as unknown as AtlasFlowNodeData
   if (!node) return null
   const meta = KIND_META[node.kind]
@@ -93,6 +95,7 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
       <NodeResizer
         isVisible={Boolean(selected)}
         onResizeStart={() => onBeforeResize?.()}
+        onResizeEnd={() => onAfterResize?.()}
         minWidth={isHub ? 200 : 160}
         minHeight={52}
         lineClassName="!border-[var(--chart-3)]"
