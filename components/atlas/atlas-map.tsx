@@ -26,7 +26,7 @@ import { ArchimateViewer } from './archimate-viewer'
 import { EndpointExplorer } from './endpoint-explorer'
 import { MapToolbar, type MapFilters } from './map-toolbar'
 import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
-import { GROUP_META, KIND_META, type AtlasNode } from '@/lib/atlas-types'
+import { GROUP_META, KIND_META, type AtlasEdge, type AtlasNode } from '@/lib/atlas-types'
 import { useAtlasNodes } from '@/lib/atlas-local'
 import { NodeEditor } from './node-editor'
 
@@ -40,6 +40,7 @@ const HEALTH_COLOR: Record<string, string> = {
   ok: 'var(--flow-neutral)',
   degradado: 'var(--chart-1)',
   caido: 'var(--destructive)',
+  sin_dato: 'var(--flow-neutral)',
 }
 
 // ---- hierarchy helpers (static, derived from the dataset) ----
@@ -208,6 +209,7 @@ type UndoSnapshot = {
   }>
   edgeHandles: Record<string, { sourceHandle?: string; targetHandle?: string }>
   edgeEndpoints: Record<string, { source: string; target: string }>
+  createdEdges: AtlasEdge[]
 }
 
 type PersistedLayout = UndoSnapshot & {
@@ -239,6 +241,7 @@ function MapInner() {
   const [edgeEndpoints, setEdgeEndpoints] = useState<
     Record<string, { source: string; target: string }>
   >({})
+  const [createdEdges, setCreatedEdges] = useState<AtlasEdge[]>([])
   const [filters, setFilters] = useState<MapFilters>({
     query: '',
     groups: ['core', 'plataforma', 'integracion', 'aplicacion', 'datos', 'externo'],
@@ -286,7 +289,7 @@ function MapInner() {
   const effectiveEdges = useMemo<EffEdge[]>(() => {
     const seen = new Set<string>()
     const out: EffEdge[] = []
-    for (const e of ATLAS_EDGES) {
+    for (const e of [...ATLAS_EDGES, ...createdEdges]) {
       const endpointOverride = edgeEndpoints[e.id]
       const rawSource = endpointOverride?.source ?? e.source
       const rawTarget = endpointOverride?.target ?? e.target
@@ -308,7 +311,7 @@ function MapInner() {
       })
     }
     return out
-  }, [collapsed, edgeEndpoints])
+  }, [collapsed, edgeEndpoints, createdEdges])
 
   // Which nodes pass the filters (collapse + group + country + direction + query + issues)
   const visibleIds = useMemo(() => {
@@ -376,6 +379,7 @@ function MapInner() {
   const nodesRef = useRef<Node[]>(nodes)
   const edgeHandlesRef = useRef(edgeHandles)
   const edgeEndpointsRef = useRef(edgeEndpoints)
+  const createdEdgesRef = useRef(createdEdges)
   const persistenceLoadedRef = useRef(false)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -383,6 +387,7 @@ function MapInner() {
   nodesRef.current = nodes
   edgeHandlesRef.current = edgeHandles
   edgeEndpointsRef.current = edgeEndpoints
+  createdEdgesRef.current = createdEdges
   // React Flow guarda el resize principalmente en "measured/dimensions".
   // Lo normalizamos también a style.width/style.height para que sobreviva
   // desmontajes, cambios de vista y recargas.
@@ -458,6 +463,10 @@ function MapInner() {
             edgeEndpointsRef.current = restoredEndpoints
             setEdgeEndpoints(restoredEndpoints)
           }
+          if (Array.isArray(saved.createdEdges)) {
+            createdEdgesRef.current = saved.createdEdges
+            setCreatedEdges(saved.createdEdges)
+          }
         }
       }
     } catch {
@@ -488,6 +497,7 @@ function MapInner() {
         edgeEndpoints: Object.fromEntries(
           Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
         ),
+        createdEdges: createdEdgesRef.current.map((edge) => ({ ...edge })),
       }
       window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
     } catch {
@@ -508,7 +518,7 @@ function MapInner() {
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
-  }, [nodes, edgeHandles, edgeEndpoints, persistLayoutNow])
+  }, [nodes, edgeHandles, edgeEndpoints, createdEdges, persistLayoutNow])
 
   // Flush de seguridad: si el usuario sale, recarga o cierra la pestaña antes del
   // debounce, persistimos el último estado visible del mapa.
@@ -547,6 +557,7 @@ function MapInner() {
       edgeEndpoints: Object.fromEntries(
         Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
       ),
+      createdEdges: createdEdgesRef.current.map((edge) => ({ ...edge })),
     }
 
     const stack = undoStackRef.current
@@ -584,6 +595,9 @@ function MapInner() {
     )
     edgeEndpointsRef.current = restoredEndpoints
     setEdgeEndpoints(restoredEndpoints)
+    const restoredCreatedEdges = (snapshot.createdEdges ?? []).map((edge) => ({ ...edge }))
+    createdEdgesRef.current = restoredCreatedEdges
+    setCreatedEdges(restoredCreatedEdges)
     requestAnimationFrame(() => {
       undoingRef.current = false
     })
@@ -822,7 +836,9 @@ function MapInner() {
                 ? 'var(--flow-injection)'
                 : e.direction === 'extraccion'
                   ? 'var(--flow-extraction)'
-                  : 'var(--flow-bidirectional)'
+                  : e.direction === 'bidireccional'
+                    ? 'var(--flow-bidirectional)'
+                    : 'var(--flow-neutral)'
               : HEALTH_COLOR[e.health]
           return {
             id: e.id,
@@ -881,6 +897,45 @@ function MapInner() {
     },
     [collapsed],
   )
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target || connection.source === connection.target) return
+
+    pushUndoSnapshot()
+    const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const relation: AtlasEdge = {
+      id,
+      source: connection.source,
+      target: connection.target,
+      label: 'Nueva relación',
+      direction: 'sin_definir',
+      protocol: 'Por definir',
+      health: 'sin_dato',
+    }
+
+    setCreatedEdges((prev) => {
+      const next = [...prev, relation]
+      createdEdgesRef.current = next
+      return next
+    })
+
+    if (connection.sourceHandle || connection.targetHandle) {
+      setEdgeHandles((prev) => {
+        const next = {
+          ...prev,
+          [`eff-${id}`]: {
+            sourceHandle: connection.sourceHandle ?? undefined,
+            targetHandle: connection.targetHandle ?? undefined,
+          },
+        }
+        edgeHandlesRef.current = next
+        return next
+      })
+    }
+
+    setSelectedEdgeId(`eff-${id}`)
+    requestAnimationFrame(() => persistLayoutNow())
+  }, [pushUndoSnapshot, persistLayoutNow])
 
   // Edición real de relaciones: se puede cambiar tanto el nodo de origen/destino
   // como el lado (handle) por el que entra o sale la flecha.
@@ -1006,6 +1061,7 @@ function MapInner() {
           }}
           onEdgeClick={handleEdgeClick}
           onEdgeDoubleClick={handleEdgeDoubleClick}
+          onConnect={onConnect}
           onReconnect={onReconnect}
           edgesReconnectable
           reconnectRadius={24}
@@ -1052,7 +1108,7 @@ function MapInner() {
         <DetailPanel
           node={selected}
           nodes={atlasNodes}
-          edges={ATLAS_EDGES}
+          edges={[...ATLAS_EDGES, ...createdEdges]}
           issues={ATLAS_ISSUES}
           onClose={() => setSelectedId(null)}
           onSelect={handleSelect}
