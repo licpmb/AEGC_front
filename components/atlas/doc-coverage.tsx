@@ -90,8 +90,8 @@ export function DocCoverage() {
         </div>
         <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">
           Consolida la documentación repartida en SharePoint, GitLab y ArchiMate, y muestra qué
-          falta de cada desarrollo. GCC agrega el estado de sus hijos y comparte el SharePoint
-          contra SAP. Cada celda es sincronizable por API.
+          falta de cada desarrollo. Hacé clic sobre un desarrollo para editar sus datos. GCC agrega
+          el estado de sus hijos y comparte el SharePoint contra SAP.
         </p>
 
         <div className="mt-4 flex flex-wrap items-stretch gap-3">
