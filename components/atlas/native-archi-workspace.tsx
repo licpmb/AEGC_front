@@ -22,6 +22,41 @@ function fill(type: string): string {
   return '#f2f2f2'
 }
 
+
+function fontFromArchi(value?: string) {
+  if (!value) return { family: 'Arial, sans-serif', size: 10.5, weight: 400, style: 'normal' as const }
+  const parts = value.split('|')
+  const family = parts[1] || 'Arial'
+  const points = Number(parts[2]) || 8
+  const swtStyle = Number(parts[3]) || 0
+  return {
+    family: `${family}, Arial, sans-serif`,
+    size: Math.max(8, points * 1.333),
+    weight: (swtStyle & 1) ? 700 : 400,
+    style: (swtStyle & 2) ? 'italic' as const : 'normal' as const,
+  }
+}
+
+function roundedConnectionPath(points: Array<{ x: number; y: number }>, radius = 14) {
+  if (points.length < 2) return ''
+  if (points.length === 2) return `M${points[0].x} ${points[0].y} L${points[1].x} ${points[1].y}`
+  const out: string[] = [`M${points[0].x} ${points[0].y}`]
+  for (let i = 1; i < points.length - 1; i++) {
+    const prev = points[i - 1], cur = points[i], next = points[i + 1]
+    const ax = prev.x - cur.x, ay = prev.y - cur.y
+    const bx = next.x - cur.x, by = next.y - cur.y
+    const al = Math.hypot(ax, ay), bl = Math.hypot(bx, by)
+    if (al < 1 || bl < 1) { out.push(`L${cur.x} ${cur.y}`); continue }
+    const r = Math.min(radius, al / 2, bl / 2)
+    const p1 = { x: cur.x + ax / al * r, y: cur.y + ay / al * r }
+    const p2 = { x: cur.x + bx / bl * r, y: cur.y + by / bl * r }
+    out.push(`L${p1.x} ${p1.y} Q${cur.x} ${cur.y} ${p2.x} ${p2.y}`)
+  }
+  const last = points.at(-1)!
+  out.push(`L${last.x} ${last.y}`)
+  return out.join(' ')
+}
+
 function truncated(label: string, width: number): string[] {
   const max = Math.max(9, Math.floor(width / 7.2))
   if (label.length <= max) return [label]
@@ -157,14 +192,17 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     const background = o.fillColor || (group ? 'var(--archi-group)' : fill(o.type))
     const textColor = o.fontColor || (group ? 'var(--foreground)' : '#1b3145')
     const alt = o.figureType === '1'
-    const alignCode = o.textAlignment ?? '2'
+    const font = fontFromArchi(o.font)
+    const defaultTopLeft = group || isNote
+    const alignCode = o.textAlignment ?? (defaultTopLeft ? '1' : '2')
     const align = alignCode === '1' ? 'start' : alignCode === '4' ? 'end' : 'middle'
     const textInset = alt && /ApplicationComponent/i.test(o.type) ? 18 : 7
     const textX = align === 'middle' ? o.x + o.width / 2 : align === 'end' ? o.x + o.width - textInset : o.x + textInset
     const lines = truncated(o.label, o.width - textInset * 2)
-    const positionCode = o.textPosition ?? '1'
-    const baseY = positionCode === '2' ? o.y + o.height - 8 - (lines.length - 1) * 14 :
-      positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * 14) / 2 + 4 : o.y + 18
+    const positionCode = o.textPosition ?? (defaultTopLeft ? '0' : '1')
+    const lineHeight = Math.max(10, font.size * 1.2)
+    const baseY = positionCode === '2' ? o.y + o.height - 7 - (lines.length - 1) * lineHeight :
+      positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * lineHeight) / 2 + font.size * .35 : o.y + font.size + 5
     const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1 }
     const isNote = /^Note$/i.test(o.type)
     const isArtifact = /Artifact/i.test(o.type)
@@ -222,7 +260,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       {isArtifact && !alt && !group && <>
         <path d={`M ${o.x + o.width - 16} ${o.y + 6} H ${o.x + o.width - 9} L ${o.x + o.width - 4} ${o.y + 11} V ${o.y + 21} H ${o.x + o.width - 16} Z M ${o.x + o.width - 9} ${o.y + 6} V ${o.y + 11} H ${o.x + o.width - 4}`} fill="none" stroke={stroke} strokeWidth="1"/>
       </>}
-      {o.label && lines.map((line, index) => <text key={index} x={textX} y={baseY + index * 14} fontSize="11" fontWeight={index ? 400 : 600} textAnchor={align} fill={textColor}>{line}</text>)}
+      {o.label && lines.map((line, index) => <text key={index} x={textX} y={baseY + index * lineHeight} fontFamily={font.family} fontSize={font.size} fontWeight={font.weight} fontStyle={font.style} textAnchor={align} fill={textColor}>{line}</text>)}
     </g>
   }
 
@@ -311,7 +349,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
             </defs>
             {objects.filter((o) => containerIds.has(o.id)).map(renderFigure)}
             {connections.map((c) => { const points = routeFor(c.id); if (!points.length) return null
-              const path = points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ')
+              const path = roundedConnectionPath(points)
               const rel = c.relationId ? model.relationships.get(c.relationId) : undefined
               const type = rel?.type ?? c.type
               const connected = selectedConnectionId === c.id || !!selected && (selected.id === c.source || selected.id === c.target)
@@ -319,7 +357,8 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
               const stroke = connected ? '#f59e0b' : baseStroke
               const access = rel?.accessType ?? '0'
               const dash = /FlowRelationship/i.test(type) ? '6 3' :
-                /RealizationRelationship|AccessRelationship|InfluenceRelationship/i.test(type) ? '2 2' : undefined
+                /RealizationRelationship|AccessRelationship/i.test(type) ? '2 2' :
+                /InfluenceRelationship/i.test(type) ? '2 2' : undefined
               let markerStart: string | undefined
               let markerEnd: string | undefined
               if (/CompositionRelationship/i.test(type)) markerStart = 'url(#native-diamond)'
@@ -339,7 +378,7 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
                 <title>{`${rel?.name || type} · ${c.id}`}</title>
                 <path d={path} fill="none" stroke={stroke} strokeWidth={connected ? Math.max(3, (c.lineWidth ?? 1) + 2) : (c.lineWidth ?? 1)}
                   strokeDasharray={dash} strokeLinejoin="miter" strokeLinecap="butt" markerStart={markerStart} markerEnd={markerEnd}/>
-                {rel?.name && labelPoint && <text x={labelPoint.x + 4} y={labelPoint.y - 4} fontSize="10" fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text>}
+                {rel?.name && labelPoint && (() => { const rf = fontFromArchi(c.font); return <text x={labelPoint.x + 4} y={labelPoint.y - 4} fontFamily={rf.family} fontSize={rf.size} fontWeight={rf.weight} fontStyle={rf.style} fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text> })()}
                 <path d={path} fill="none" stroke="transparent" strokeWidth="14" style={{ cursor: 'pointer' }} onClick={() => { setSelectedConnectionId(c.id); setSelected(null) }}/>
               </g> })}
             {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
