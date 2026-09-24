@@ -99,13 +99,17 @@
 
   /* Map domain surfaces — clearly distinct from canvas */
   --map-node-core-bg: #5A461C;
-  --map-node-integracion-bg: #493561;
-  --map-node-aplicacion-bg: #285379;
+  --map-node-plataforma-bg: #493561;
+  --map-node-integracion-bg: #285379;
+  --map-node-aplicacion-bg: #203F5A;
   --map-node-datos-bg: #275A54;
+  --map-node-externo-bg: #4E2F35;
   --map-node-core-border: #E1B54C;
-  --map-node-integracion-border: #B38BDA;
-  --map-node-aplicacion-border: #68A7E3;
+  --map-node-plataforma-border: #B38BDA;
+  --map-node-integracion-border: #68A7E3;
+  --map-node-aplicacion-border: #4DA3FF;
   --map-node-datos-border: #68B8AC;
+  --map-node-externo-border: #EF6D73;
   --map-node-title: #FFFFFF;
   --map-node-meta: #E4EBF2;
   --map-node-badge-bg: rgba(255,255,255,.10);
@@ -164,13 +168,17 @@
   --archi-flow: #3E829F;
 
   --map-node-core-bg: #FFF0C8;
-  --map-node-integracion-bg: #EEE3F8;
-  --map-node-aplicacion-bg: #E0EEFB;
+  --map-node-plataforma-bg: #EEE3F8;
+  --map-node-integracion-bg: #E0EEFB;
+  --map-node-aplicacion-bg: #E9F3FC;
   --map-node-datos-bg: #DFF3EF;
+  --map-node-externo-bg: #FBE6E8;
   --map-node-core-border: #C9992E;
-  --map-node-integracion-border: #8E68B1;
-  --map-node-aplicacion-border: #4F8DC4;
+  --map-node-plataforma-border: #8E68B1;
+  --map-node-integracion-border: #4F8DC4;
+  --map-node-aplicacion-border: #2F80D0;
   --map-node-datos-border: #438F87;
+  --map-node-externo-border: #D35860;
   --map-node-title: #172331;
   --map-node-meta: #526274;
   --map-node-badge-bg: rgba(255,255,255,.78);
