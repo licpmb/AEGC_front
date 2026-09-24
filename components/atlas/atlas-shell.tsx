@@ -157,7 +157,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
       <div className="flex min-h-0 flex-1">
         {view === 'mapa' && <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center justify-between border-b border-border px-5 py-2 text-xs">
-            <span>{native ? 'Mapa de interfaces · el modelo Archi está cargado y se vincula desde «Modelo Archi».' : 'Este mapa contiene datos de demostración. Abrí tu .archimate para vincular el universo con el modelo real.'}</span>
+            <span>{native ? 'Mapa principal de relaciones. El modelo Archi está cargado; las relaciones reales se incorporan acá, no en una vista paralela.' : 'Este mapa contiene datos de demostración. Cargá tu .archimate para trabajar con el modelo real.'}</span>
             <Button variant="outline" size="sm" onClick={() => setView('archi')}>{native ? 'Abrir modelo Archi' : 'Cargar modelo Archi'}</Button>
           </div>
           <div className="min-h-0 flex-1"><AtlasMap /></div>
