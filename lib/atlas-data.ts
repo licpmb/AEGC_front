@@ -15,7 +15,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP / Basis',
     description: 'ERP central. Se integra con CPI, Web Dispatcher, ODP para Google BigQuery y el servidor de interfaces.',
-    x: 0, y: 0,
+    x: 40, y: 0,
     tech: ['SAP S/4HANA RISE'],
   },
   {
@@ -26,7 +26,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Integraciones',
     description: 'Middleware de integración entre SAP y aplicaciones/interfaces. Conecta Identity, KETAN, CDL, CAOLIX, DMP, ARCA y APIs estándar usadas por GCC.',
-    x: 320, y: -20,
+    x: 560, y: 0,
     tech: ['SAP Integration Suite / CPI'],
   },
   {
@@ -37,7 +37,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP / Basis',
     description: 'Punto de entrada HTTP(S) hacia SAP para integraciones que no pasan por CPI. EBuyPlace se conecta por este camino.',
-    x: -320, y: 40,
+    x: 300, y: 720,
     tech: ['SAP Web Dispatcher'],
   },
   {
@@ -48,7 +48,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Data',
     description: 'Replica y extrae tablas de SAP hacia BigQuery mediante ODP/Toolkit de Google.',
-    x: -40, y: 230,
+    x: 300, y: 1080,
     tech: ['ODP', 'Google Cloud Toolkit for SAP'],
   },
   {
@@ -59,7 +59,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Infraestructura',
     description: 'Servidor intermedio de archivos y procesos para integraciones como MACRO, Visma y COT.',
-    x: -330, y: 300,
+    x: 300, y: 820,
     tech: ['Linux/Windows file integration'],
   },
   {
@@ -70,7 +70,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Data',
     description: 'Destino de replicación de datos de SAP y origen de cargas hacia SQL Server.',
-    x: 0, y: 450,
+    x: 560, y: 1080,
     tech: ['Google BigQuery'],
   },
   {
@@ -81,7 +81,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Data / Aplicaciones',
     description: 'Persistencia operacional alimentada desde BigQuery mediante loaders y builders.',
-    x: 720, y: 450,
+    x: 1280, y: 1080,
     tech: ['SQL Server'],
   },
   {
@@ -92,7 +92,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Data',
     description: 'Procesos que leen datos desde BigQuery y los preparan/cargan para consumo en SQL Server.',
-    x: 250, y: 450,
+    x: 800, y: 1080,
     tech: ['Loaders'],
   },
   {
@@ -103,7 +103,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Data',
     description: 'Procesos de preparación y construcción de modelos/tablas para consumo por otros desarrollos y SQL Server.',
-    x: 480, y: 450,
+    x: 1040, y: 1080,
     tech: ['Builders'],
   },
 
@@ -116,7 +116,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Aplicaciones',
     description: 'Servicios de identidad conectados con CPI y usados por otros desarrollos.',
-    x: 620, y: -250,
+    x: 820, y: 140,
     tech: ['Microservices'],
   },
   {
@@ -127,7 +127,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Operaciones / Integraciones',
     description: 'Integración KETAN. Interfaces PP-01 KETAN IDA y PP-02 KETAN VUELTA.',
-    x: 620, y: -140,
+    x: 820, y: 230,
     tech: ['Gateway', 'SQL Server'],
   },
   {
@@ -138,7 +138,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Operaciones / Integraciones',
     description: 'Consumo en Línea. Integración conectada a SAP mediante CPI.',
-    x: 620, y: -30,
+    x: 820, y: 320,
   },
   {
     id: 'caolix',
@@ -148,7 +148,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Finanzas',
     description: 'Web externa para rendición de gastos de empleados. Las rendiciones llegan por CPI y se contabilizan en SAP. Código FI-10.',
-    x: 620, y: 80,
+    x: 820, y: 410,
     country: 'AR',
   },
   {
@@ -159,7 +159,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Capital Humano ejecuta luego un programa SAP que incorpora la información.',
-    x: 620, y: 190,
+    x: 820, y: 500,
     country: 'AR',
   },
   {
@@ -170,7 +170,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Frontend de DMP.',
-    x: 900, y: 120,
+    x: 1060, y: 450,
     parentId: 'dmp',
   },
   {
@@ -181,7 +181,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'Gateway de DMP.',
-    x: 900, y: 190,
+    x: 1060, y: 520,
     parentId: 'dmp',
   },
   {
@@ -192,7 +192,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
     description: 'API de DMP.',
-    x: 900, y: 260,
+    x: 1300, y: 520,
     parentId: 'dmp',
   },
   {
@@ -203,7 +203,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Datos & Analytics',
     owner: 'Capital Humano',
     description: 'Base SQL de DMP.',
-    x: 900, y: 330,
+    x: 1300, y: 590,
     parentId: 'dmp',
   },
   {
@@ -214,7 +214,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Fiscal / SAP',
     description: 'Integración de Factura Electrónica Doméstica y Factura Electrónica de Exportación.',
-    x: 620, y: 300,
+    x: 820, y: 590,
     country: 'AR',
   },
   {
@@ -225,7 +225,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Compras',
     description: 'Interfaz conectada a SAP a través de Web Dispatcher. Códigos FI-01 y MM-04.',
-    x: -650, y: 40,
+    x: 560, y: 720,
   },
   {
     id: 'macro',
@@ -235,7 +235,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Finanzas',
     description: 'Integración bancaria por SFTP usando el servidor de interfaces. Código FI-07.',
-    x: -650, y: 270,
+    x: 560, y: 790,
     country: 'AR',
   },
   {
@@ -246,7 +246,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Capital Humano',
     description: 'Integración por SFTP usando el servidor de interfaces. Código HCM-01.',
-    x: -650, y: 350,
+    x: 560, y: 860,
   },
   {
     id: 'cot',
@@ -256,7 +256,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Integración',
     owner: 'Logística / Fiscal',
     description: 'Servicio COT hacia ARBA mediante archivos y servidor de interfaces. Código SD-21.',
-    x: -650, y: 430,
+    x: 560, y: 930,
     country: 'AR',
   },
   {
@@ -267,7 +267,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Compras',
     description: 'Interfaz manual: un archivo se descarga desde una transacción Fiori y otro se sube mediante otra transacción Fiori. Código MM-03.',
-    x: 40, y: -250,
+    x: 40, y: -280,
   },
   {
     id: 'balanza-burzaco',
@@ -277,7 +277,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Logística',
     description: 'Desde Fiori levanta el pesaje de la balanza física de camiones. Código TM-02.',
-    x: 40, y: -360,
+    x: 40, y: -370,
     country: 'AR',
   },
   {
@@ -288,7 +288,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Logística',
     description: 'Desde Fiori levanta el pesaje de la balanza física de camiones. Código TM-03.',
-    x: 250, y: -360,
+    x: 300, y: -370,
     country: 'AR',
   },
   {
@@ -299,7 +299,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Finanzas / SAP',
     description: 'Desarrollo en SAP para generación de cheques destinados al pago a proveedores. Códigos FI-05 y FI-06.',
-    x: 250, y: -250,
+    x: 300, y: -280,
   },
   {
     id: 'tec',
@@ -309,7 +309,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Logística',
     description: 'Web que muestra estado de camiones. Parte de una tabla Z SAP replicada en BigQuery, luego cargada en SQL y consumida por la web. Código TM-01.',
-    x: 940, y: 520,
+    x: 1520, y: 1080,
     country: 'AR',
   },
   {
@@ -320,7 +320,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial',
     description: 'Gestión Comercial Cepas. Código SD-12. La cadena técnica pasa por Gateway y API de Cepas, CPI y luego APIs estándar de SAP.',
-    x: 940, y: -40,
+    x: 1300, y: -90,
     country: 'AR',
   },
   {
@@ -331,7 +331,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial / Integraciones',
     description: 'Gateway de Cepas utilizado por GCC antes de la API de negocio.',
-    x: 1180, y: -40,
+    x: 1060, y: -90,
     country: 'AR',
   },
   {
@@ -342,7 +342,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Aplicaciones',
     owner: 'Comercial / Integraciones',
     description: 'API de Cepas utilizada por GCC. Desde aquí la integración continúa hacia CPI.',
-    x: 1420, y: -40,
+    x: 820, y: -90,
     country: 'AR',
   },
 
@@ -355,7 +355,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP',
     description: 'API estándar de SAP utilizada por GCC para pedidos de venta.',
-    x: 1900, y: -180,
+    x: 300, y: -180,
     parentId: 'sap-s4',
     tech: ['OData'],
   },
@@ -367,7 +367,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP',
     description: 'API estándar SAP para simulación de pedidos de venta usada por GCC.',
-    x: 1900, y: -100,
+    x: 300, y: -90,
     parentId: 'sap-s4',
     tech: ['OData'],
   },
@@ -379,7 +379,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP',
     description: 'API estándar SAP para devoluciones de cliente usada por GCC.',
-    x: 1900, y: -20,
+    x: 300, y: 0,
     parentId: 'sap-s4',
     tech: ['OData'],
   },
@@ -391,7 +391,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     domain: 'Core SAP',
     owner: 'SAP',
     description: 'API estándar SAP para simulación de devoluciones de cliente usada por GCC.',
-    x: 1900, y: 60,
+    x: 300, y: 90,
     parentId: 'sap-s4',
     tech: ['OData'],
   },
