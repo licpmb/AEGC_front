@@ -26,6 +26,7 @@ const ICONS: Record<NodeKind, typeof Server> = {
   dispatcher: Shield,
   middleware: Workflow,
   external: Globe,
+  server: Server,
   interface: Boxes,
   front: Layers,
   gateway: Radio,
