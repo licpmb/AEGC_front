@@ -526,10 +526,6 @@ function MapInner() {
           Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
         ),
         createdEdges: createdEdgesRef.current.map((edge) => ({ ...edge })),
-      relationOverrides: Object.fromEntries(
-        Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
-      ),
-      deletedEdgeIds: [...deletedEdgeIdsRef.current],
         relationOverrides: Object.fromEntries(
           Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
         ),
@@ -594,6 +590,10 @@ function MapInner() {
         Object.entries(edgeEndpointsRef.current).map(([id, endpoints]) => [id, { ...endpoints }]),
       ),
       createdEdges: createdEdgesRef.current.map((edge) => ({ ...edge })),
+      relationOverrides: Object.fromEntries(
+        Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
+      ),
+      deletedEdgeIds: [...deletedEdgeIdsRef.current],
     }
 
     const stack = undoStackRef.current
