@@ -57,6 +57,18 @@ function roundedConnectionPath(points: Array<{ x: number; y: number }>, radius =
   return out.join(' ')
 }
 
+
+function connectionLabelOffset(relative?: string) {
+  // Same bitmask values Archi inherits from Draw2D PositionConstants.
+  const value = Number(relative ?? '2')
+  const north = (value & 1) !== 0, south = (value & 4) !== 0
+  const west = (value & 8) !== 0, east = (value & 16) !== 0
+  return {
+    x: west ? -5 : east ? 5 : 0,
+    y: north ? -5 : south ? 5 : 0,
+  }
+}
+
 function truncated(label: string, width: number): string[] {
   const max = Math.max(9, Math.floor(width / 7.2))
   if (label.length <= max) return [label]
@@ -205,6 +217,8 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       positionCode === '1' ? o.y + o.height / 2 - ((lines.length - 1) * lineHeight) / 2 + font.size * .35 : o.y + font.size + 5
     const common = { fill: background, stroke, strokeWidth: selectedObject ? 3 : 1 }
     const isNote = /^Note$/i.test(o.type)
+    const isGrouping = /Grouping|DiagramModelGroup/i.test(o.type)
+    const isJunction = /Junction/i.test(o.type)
     const isArtifact = /Artifact/i.test(o.type)
     const isData = /DataObject/i.test(o.type)
     const isNode = /^Node$/i.test(o.type)
@@ -217,6 +231,13 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
       <title>{`${o.label} · ${o.type}${o.elementId ? ` · ${o.elementId}` : ''} · figura ${o.id}`}</title>
 
       {isNote ? <rect x={o.x} y={o.y} width={o.width} height={o.height} fill={o.fillColor || 'var(--background)'} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/>
+      : isJunction ? <ellipse cx={o.x + o.width / 2} cy={o.y + o.height / 2} rx={o.width / 2} ry={o.height / 2}
+          fill={background} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/>
+      : isGrouping && alt ? <>
+          <rect x={o.x} y={o.y + 18} width={o.width} height={Math.max(1, o.height - 18)} {...common} fillOpacity={!o.fillColor ? .35 : 1}/>
+          <path d={`M ${o.x} ${o.y + 18} V ${o.y} H ${o.x + Math.max(42, Math.min(o.width / 1.4, o.width))} V ${o.y + 18}`}
+            fill={background} stroke={stroke} strokeWidth={selectedObject ? 3 : 1}/>
+        </>
       : isComponent && alt ? <>
           <path d={`M ${o.x + 10} ${o.y} H ${o.x + o.width} V ${o.y + o.height} H ${o.x + 10} V ${o.y + 43} M ${o.x + 10} ${o.y + 30} V ${o.y + 23} M ${o.x + 10} ${o.y + 10} V ${o.y}`} {...common}/>
           <rect x={o.x} y={o.y + 10} width="20" height="13" {...common}/>
@@ -374,11 +395,17 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
               const labelPoint = c.textPosition === '0' ? points[Math.min(1, points.length - 1)] :
                 c.textPosition === '2' ? points[Math.max(0, points.length - 2)] :
                 points[Math.floor(points.length / 2)]
+              const labelOffset = connectionLabelOffset(c.textRelativePosition)
               return <g key={c.id}>
                 <title>{`${rel?.name || type} · ${c.id}`}</title>
                 <path d={path} fill="none" stroke={stroke} strokeWidth={connected ? Math.max(3, (c.lineWidth ?? 1) + 2) : (c.lineWidth ?? 1)}
                   strokeDasharray={dash} strokeLinejoin="miter" strokeLinecap="butt" markerStart={markerStart} markerEnd={markerEnd}/>
-                {rel?.name && labelPoint && (() => { const rf = fontFromArchi(c.font); return <text x={labelPoint.x + 4} y={labelPoint.y - 4} fontFamily={rf.family} fontSize={rf.size} fontWeight={rf.weight} fontStyle={rf.style} fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text> })()}
+                {c.nameVisible !== false && rel?.name && labelPoint && (() => { const rf = fontFromArchi(c.font); return <text
+                  x={labelPoint.x + labelOffset.x} y={labelPoint.y + labelOffset.y}
+                  fontFamily={rf.family} fontSize={rf.size} fontWeight={rf.weight} fontStyle={rf.style}
+                  textAnchor={labelOffset.x < 0 ? 'end' : labelOffset.x > 0 ? 'start' : 'middle'}
+                  dominantBaseline={labelOffset.y > 0 ? 'hanging' : 'auto'}
+                  fill={c.fontColor || 'var(--foreground)'} paintOrder="stroke" stroke="var(--archi-canvas)" strokeWidth="3">{rel.name}</text> })()}
                 <path d={path} fill="none" stroke="transparent" strokeWidth="14" style={{ cursor: 'pointer' }} onClick={() => { setSelectedConnectionId(c.id); setSelected(null) }}/>
               </g> })}
             {objects.filter((o) => !containerIds.has(o.id)).map(renderFigure)}
