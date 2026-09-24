@@ -9,6 +9,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   useEdgesState,
   useNodesState,
   useReactFlow,
@@ -675,7 +676,18 @@ function MapInner() {
           onEdgeDoubleClick={handleEdgeDoubleClick}
           onReconnect={onReconnect}
           edgesReconnectable
+          selectionOnDrag
+          selectionMode={SelectionMode.Partial}
+          panOnDrag={[1, 2]}
           multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
+          onSelectionChange={({ nodes: selectedNodes }) => {
+            const ids = selectedNodes.map((node) => node.id)
+            setSelectedNodeIds(ids)
+            if (ids.length === 0) setSelectedId(null)
+            else if (ids.length === 1) setSelectedId(ids[0])
+            else setSelectedId(ids[ids.length - 1])
+            setSelectedEdgeId(null)
+          }}
           onPaneClick={() => {
             setSelectedId(null)
             setSelectedNodeIds([])
