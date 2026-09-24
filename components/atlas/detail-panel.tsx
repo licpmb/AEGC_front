@@ -14,6 +14,7 @@ import {
   Server,
   FileText,
   Eye,
+  Pencil,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -74,6 +75,7 @@ export function DetailPanel({
   onSelect,
   onOpenArchimate,
   onOpenEndpoints,
+  onEdit,
 }: {
   node: AtlasNode
   nodes: AtlasNode[]
@@ -83,6 +85,7 @@ export function DetailPanel({
   onSelect: (id: string) => void
   onOpenArchimate?: (nodeId: string) => void
   onOpenEndpoints?: (nodeId: string) => void
+  onEdit?: (nodeId: string) => void
 }) {
   const meta = KIND_META[node.kind]
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -137,6 +140,9 @@ export function DetailPanel({
             </span>
           )}
         </div>
+        {onEdit && <Button variant="ghost" size="icon" onClick={() => onEdit(node.id)} aria-label="Editar nodo" title="Editar interfaz / nodo">
+          <Pencil size={15} />
+        </Button>}
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar panel">
           <X size={16} />
         </Button>
