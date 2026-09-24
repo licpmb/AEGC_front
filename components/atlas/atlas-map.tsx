@@ -438,7 +438,11 @@ function MapInner() {
         nodes: nodesRef.current.map((node) => ({
           id: node.id,
           position: { ...node.position },
-          style: node.style ? { ...node.style } : undefined,
+          style: {
+            ...(node.style ?? {}),
+            width: nodeWidth(node),
+            height: nodeHeight(node),
+          },
         })),
         edgeHandles: Object.fromEntries(
           Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
@@ -493,7 +497,11 @@ function MapInner() {
       nodes: nodesRef.current.map((node) => ({
         id: node.id,
         position: { ...node.position },
-        style: node.style ? { ...node.style } : undefined,
+        style: {
+          ...(node.style ?? {}),
+          width: nodeWidth(node),
+          height: nodeHeight(node),
+        },
       })),
       edgeHandles: Object.fromEntries(
         Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
@@ -722,7 +730,7 @@ function MapInner() {
             hiddenChildren: collapsed.has(node.id) ? descendantCount(node.id) : 0,
             onToggleCollapse: toggleCollapse,
             onBeforeResize: pushUndoSnapshot,
-            onAfterResize: persistLayoutNow,
+            onAfterResize: () => requestAnimationFrame(() => persistLayoutNow()),
           } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
         }
       }),
