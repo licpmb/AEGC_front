@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react'
 import {
   Database,
@@ -52,7 +53,7 @@ export type AtlasFlowNodeData = {
   onAfterResize?: () => void
 }
 
-export function AtlasFlowNode({ data, selected }: NodeProps) {
+function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
   const {
     node,
     openIssues,
@@ -104,10 +105,9 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
       />
       <div
         className={cn(
-          'group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
+          'group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-lg border transition-[opacity,border-color] duration-150',
           isHub ? 'px-4 py-3.5' : 'px-3 py-2.5',
           dimmed && 'opacity-20 saturate-0',
-          (selected || focused) && 'scale-[1.02]',
         )}
         style={{
           background: surface.background,
@@ -115,8 +115,8 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
           borderColor: selected || focused ? meta.color : heat?.ring ?? surface.border,
           boxShadow:
             selected || focused
-              ? `0 0 0 1px ${meta.color}, 0 8px 24px -14px ${meta.color}`
-              : heat?.glow ?? '0 7px 18px -15px rgba(48, 38, 44, 0.42)',
+              ? `0 0 0 1px ${meta.color}`
+              : heat?.glow ?? 'none',
         }}
       >
         {/* Handles en los 4 lados para poder reordenar las conexiones manualmente. */}
@@ -240,3 +240,5 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
     </>
   )
 }
+
+export const AtlasFlowNode = memo(AtlasFlowNodeComponent)
