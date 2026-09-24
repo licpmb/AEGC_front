@@ -26,7 +26,7 @@ import { ArchimateViewer } from './archimate-viewer'
 import { EndpointExplorer } from './endpoint-explorer'
 import { MapToolbar, type MapFilters } from './map-toolbar'
 import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
-import { KIND_META, type AtlasNode } from '@/lib/atlas-types'
+import { GROUP_META, KIND_META, type AtlasNode } from '@/lib/atlas-types'
 import { useAtlasNodes } from '@/lib/atlas-local'
 import { NodeEditor } from './node-editor'
 
@@ -241,7 +241,7 @@ function MapInner() {
   >({})
   const [filters, setFilters] = useState<MapFilters>({
     query: '',
-    groups: ['core', 'integracion', 'aplicacion', 'datos'],
+    groups: ['core', 'plataforma', 'integracion', 'aplicacion', 'datos', 'externo'],
     countries: [],
     direction: 'todos',
     showIssues: true,
@@ -1083,12 +1083,10 @@ function MapInner() {
 }
 
 function MapLegend() {
-  const items = [
-    { label: 'Core SAP', color: 'var(--map-node-core-border)' },
-    { label: 'Integración', color: 'var(--map-node-integracion-border)' },
-    { label: 'Aplicaciones', color: 'var(--map-node-aplicacion-border)' },
-    { label: 'Datos', color: 'var(--map-node-datos-border)' },
-  ]
+  const items = Object.entries(GROUP_META).map(([key, meta]) => ({
+    label: meta.label,
+    color: `var(--map-node-${key}-border)`,
+  }))
   return (
     <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col gap-2 rounded-lg border border-border bg-card/85 px-3 py-2.5 backdrop-blur-sm">
       <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
