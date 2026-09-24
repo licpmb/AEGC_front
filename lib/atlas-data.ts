@@ -438,7 +438,6 @@ export const ATLAS_EDGES: AtlasEdge[] = [
   { id: 'dmp-api-sql', source: 'dmp-api', target: 'dmp-sql', label: 'persistencia', direction: 'inyeccion', protocol: 'JDBC', health: 'ok' },
   { id: 'dmp-sap', source: 'dmp-sql', target: 'sap-s4', label: 'programa SAP incorpora datos', direction: 'inyeccion', protocol: 'Batch', health: 'ok' },
 
-  { id: 'gcc-gw', source: 'gcc', target: 'gcc-gw', label: 'GCC → Gateway', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'gw-gcc-api', source: 'gcc-gw', target: 'gcc-api', label: 'Gateway → API Cepas', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'gcc-api-cpi', source: 'gcc-api', target: 'cpi', label: 'API Cepas → CPI', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'cpi-api-so', source: 'cpi', target: 'api-sales-order', label: 'Sales Order', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
