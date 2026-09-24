@@ -24,6 +24,8 @@ export type MultiNodeAction =
   | 'align-top'
   | 'align-center-y'
   | 'align-bottom'
+  | 'distribute-horizontal'
+  | 'distribute-vertical'
   | 'same-width'
   | 'same-height'
   | 'same-size'
@@ -40,6 +42,7 @@ function ToolGlyph({
   kind:
     | 'left' | 'center-x' | 'right'
     | 'top' | 'center-y' | 'bottom'
+    | 'distribute-x' | 'distribute-y'
     | 'width' | 'height' | 'size'
 }) {
   const common = { stroke: 'currentColor', strokeWidth: 1.4, fill: 'none' }
@@ -49,6 +52,8 @@ function ToolGlyph({
   if (kind === 'top') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 3h14M5 5v9M9 5v6M13 5v8" {...common}/></svg>
   if (kind === 'center-y') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 9h14M5 4v10M9 6v6M13 5v8" {...common}/></svg>
   if (kind === 'bottom') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 15h14M5 4v9M9 7v6M13 5v8" {...common}/></svg>
+  if (kind === 'distribute-x') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M2 3v12M16 3v12M5 6v6M9 5v8M13 6v6M3.5 9h3M7.5 9h3M11.5 9h3" {...common}/></svg>
+  if (kind === 'distribute-y') return <svg viewBox="0 0 18 18" className="h-4 w-4"><path d="M3 2h12M3 16h12M6 5h6M5 9h8M6 13h6M9 3.5v3M9 7.5v3M9 11.5v3" {...common}/></svg>
   if (kind === 'width') return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="3" y="5" width="12" height="8" {...common}/><path d="M1.5 9h3M13.5 9h3M2.5 8l-1 1 1 1M15.5 8l1 1-1 1" {...common}/></svg>
   if (kind === 'height') return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="5" y="3" width="8" height="12" {...common}/><path d="M9 1.5v3M9 13.5v3M8 2.5l1-1 1 1M8 15.5l1 1 1-1" {...common}/></svg>
   return <svg viewBox="0 0 18 18" className="h-4 w-4"><rect x="4" y="4" width="10" height="10" {...common}/><path d="M2 6V2h4M12 2h4v4M16 12v4h-4M6 16H2v-4" {...common}/></svg>
@@ -61,6 +66,8 @@ const MULTI_TOOLS: Array<{ action: MultiNodeAction; title: string; glyph: Parame
   { action: 'align-top', title: 'Alinear arriba', glyph: 'top' },
   { action: 'align-center-y', title: 'Alinear centros horizontales', glyph: 'center-y' },
   { action: 'align-bottom', title: 'Alinear abajo', glyph: 'bottom' },
+  { action: 'distribute-horizontal', title: 'Distribuir horizontalmente con igual espacio', glyph: 'distribute-x' },
+  { action: 'distribute-vertical', title: 'Distribuir verticalmente con igual espacio', glyph: 'distribute-y' },
   { action: 'same-width', title: 'Mismo ancho que el primero', glyph: 'width' },
   { action: 'same-height', title: 'Mismo alto que el primero', glyph: 'height' },
   { action: 'same-size', title: 'Mismo tamaño que el primero', glyph: 'size' },
@@ -164,9 +171,18 @@ export function MapToolbar({
                 key={tool.action}
                 type="button"
                 onClick={() => onMultiNodeAction(tool.action)}
-                title={tool.title}
+                disabled={
+                  selectionCount < 3 &&
+                  (tool.action === 'distribute-horizontal' || tool.action === 'distribute-vertical')
+                }
+                title={
+                  selectionCount < 3 &&
+                  (tool.action === 'distribute-horizontal' || tool.action === 'distribute-vertical')
+                    ? `${tool.title} · seleccioná al menos 3 elementos`
+                    : tool.title
+                }
                 className={cn(
-                  'flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                  'flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent',
                   index > 0 && 'border-l border-border',
                 )}
               >
