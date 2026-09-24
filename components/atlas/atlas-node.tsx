@@ -147,8 +147,8 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
           borderColor: selected || focused ? meta.color : heat?.ring ?? surface.border,
           boxShadow:
             selected || focused
-              ? `0 0 0 1px ${meta.color}, 0 0 32px -12px ${meta.color}`
-              : heat?.glow ?? '0 4px 16px -12px rgba(15, 23, 42, 0.55)',
+              ? `0 0 0 1px ${meta.color}, 0 8px 24px -14px ${meta.color}`
+              : heat?.glow ?? '0 7px 18px -15px rgba(48, 38, 44, 0.42)',
         }}
       >
         {/* Handles en los 4 lados para poder reordenar las conexiones manualmente. */}
@@ -181,8 +181,8 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
           style={{
             width: isHub ? 34 : 28,
             height: isHub ? 34 : 28,
-            background: `color-mix(in oklab, ${meta.color} 18%, transparent)`,
-            color: meta.color,
+            background: `color-mix(in oklab, ${meta.color} 14%, white 18%)`,
+            color: `color-mix(in oklab, ${meta.color} 86%, #2b3440)`,
           }}
         >
           <Icon size={isHub ? 18 : 15} strokeWidth={2} />
