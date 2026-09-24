@@ -350,17 +350,23 @@ function MapInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const undoStackRef = useRef<UndoSnapshot[]>([])
   const undoingRef = useRef(false)
+  const nodesRef = useRef<Node[]>(nodes)
+  const edgeHandlesRef = useRef(edgeHandles)
+
+  // Refs vivos para que el callback de historial sea estable y no dispare efectos.
+  nodesRef.current = nodes
+  edgeHandlesRef.current = edgeHandles
 
   const pushUndoSnapshot = useCallback(() => {
     if (undoingRef.current) return
     const snapshot: UndoSnapshot = {
-      nodes: nodes.map((node) => ({
+      nodes: nodesRef.current.map((node) => ({
         id: node.id,
         position: { ...node.position },
         style: node.style ? { ...node.style } : undefined,
       })),
       edgeHandles: Object.fromEntries(
-        Object.entries(edgeHandles).map(([id, handles]) => [id, { ...handles }]),
+        Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
       ),
     }
 
@@ -370,7 +376,7 @@ function MapInner() {
     if (prev && JSON.stringify(prev) === serialized) return
     stack.push(snapshot)
     if (stack.length > 50) stack.shift()
-  }, [nodes, edgeHandles])
+  }, [])
 
   const undo = useCallback(() => {
     const snapshot = undoStackRef.current.pop()
@@ -389,11 +395,11 @@ function MapInner() {
         }
       }),
     )
-    setEdgeHandles(
-      Object.fromEntries(
-        Object.entries(snapshot.edgeHandles).map(([id, handles]) => [id, { ...handles }]),
-      ),
+    const restoredHandles = Object.fromEntries(
+      Object.entries(snapshot.edgeHandles).map(([id, handles]) => [id, { ...handles }]),
     )
+    edgeHandlesRef.current = restoredHandles
+    setEdgeHandles(restoredHandles)
     requestAnimationFrame(() => {
       undoingRef.current = false
     })
