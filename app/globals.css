@@ -105,53 +105,75 @@
   --map-node-meta: #eef3f8;
   --map-node-badge-bg: rgba(255, 255, 255, 0.07);
   --map-node-badge-border: rgba(255, 255, 255, 0.18);
+  --flow-injection: #79A9CF;
+  --flow-extraction: #78B8AF;
+  --flow-bidirectional: #AE93CB;
+  --flow-neutral: #6E7A86;
+  --map-grid: #46515D;
 }
 
 .light {
   color-scheme: light;
-  --background: #d9e2ec;
-  --foreground: oklch(0.23 0.025 260);
-  --card: #e8eef5;
-  --card-foreground: var(--foreground);
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.53 0.15 251);
-  --primary-foreground: white;
-  --secondary: oklch(0.94 0.012 255);
-  --secondary-foreground: var(--foreground);
-  --muted: #cfd9e4;
-  --muted-foreground: oklch(0.43 0.025 260);
-  --accent: #c8d5e3;
-  --accent-foreground: var(--foreground);
-  --destructive: oklch(0.54 0.19 25);
-  --border: oklch(0.79 0.016 255);
-  --input: var(--border);
-  --ring: var(--primary);
-  --sidebar: #e2e9f1;
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: white;
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--primary);
-  --archi-canvas: #ffffff;
-  --archi-group: #eef3f7;
-  --archi-line: #334155;
-  --archi-flow: #006b9b;
 
-  --map-node-core-bg: #ead9aa;
-  --map-node-integracion-bg: #dec9ed;
-  --map-node-aplicacion-bg: #c9def1;
-  --map-node-datos-bg: #c5e3df;
-  --map-node-core-border: #c79b36;
-  --map-node-integracion-border: #9d73bc;
-  --map-node-aplicacion-border: #6496c3;
-  --map-node-datos-border: #4c9b94;
-  --map-node-title: #162033;
-  --map-node-meta: #405065;
-  --map-node-badge-bg: rgba(255, 255, 255, 0.10);
-  --map-node-badge-border: rgba(255, 255, 255, 0.24);
+  /* Warm grey-rose canvas: visually separates the map from controls without competing with nodes. */
+  --background: #F2ECEF;
+  --foreground: #28323F;
+  --card: #FCFAFB;
+  --card-foreground: #28323F;
+  --popover: #FFFDFE;
+  --popover-foreground: #28323F;
+
+  --primary: #4F789A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EAE3E7;
+  --secondary-foreground: #34414F;
+  --muted: #E8E0E4;
+  --muted-foreground: #65707C;
+  --accent: #E2D9DE;
+  --accent-foreground: #2F3B48;
+  --destructive: #C4545B;
+
+  --border: #D3C9CE;
+  --input: #CEC3C9;
+  --ring: #6E91AE;
+
+  --sidebar: #F9F6F8;
+  --sidebar-foreground: #28323F;
+  --sidebar-primary: #4F789A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EDE6EA;
+  --sidebar-accent-foreground: #2F3B48;
+  --sidebar-border: #D8CED3;
+  --sidebar-ring: #6E91AE;
+
+  /* Archi editor remains neutral so native Archi colours stay visually truthful. */
+  --archi-canvas: #FBFAFA;
+  --archi-group: #EEF1F3;
+  --archi-line: #536270;
+  --archi-flow: #4E839D;
+
+  /* Domain palette: light, calm, distinguishable, and dark-text safe. */
+  --map-node-core-bg: #F2E1B8;
+  --map-node-integracion-bg: #E3D6EC;
+  --map-node-aplicacion-bg: #D5E5F2;
+  --map-node-datos-bg: #D4E7E2;
+
+  --map-node-core-border: #C79D43;
+  --map-node-integracion-border: #A783B8;
+  --map-node-aplicacion-border: #6F9BBC;
+  --map-node-datos-border: #649E96;
+
+  --map-node-title: #26313E;
+  --map-node-meta: #596775;
+  --map-node-badge-bg: rgba(255, 255, 255, 0.52);
+  --map-node-badge-border: rgba(77, 91, 105, 0.20);
+
+  /* Process-flow palette: muted enough for overview, vivid enough when focused. */
+  --flow-injection: #628FB3;
+  --flow-extraction: #5F9D96;
+  --flow-bidirectional: #8B76A7;
+  --flow-neutral: #98A0A8;
+  --map-grid: #CFC4CA;
 }
 
 @layer base {
@@ -230,4 +252,26 @@ button svg {
 .light .react-flow__controls-button {
   color: var(--foreground) !important;
   background: var(--card) !important;
+}
+
+
+/* Map visual system */
+.react-flow.map-flow {
+  background: var(--background);
+}
+.light .react-flow.map-flow {
+  background: linear-gradient(180deg, #F4EFF1 0%, #F0E9EC 100%);
+}
+.react-flow.map-flow .react-flow__background pattern circle {
+  fill: var(--map-grid);
+  opacity: .72;
+}
+.light .react-flow.map-flow .react-flow__controls {
+  box-shadow: 0 6px 22px rgba(62, 48, 55, .08) !important;
+}
+.light .react-flow.map-flow .react-flow__controls-button {
+  background: rgba(252, 250, 251, .96) !important;
+}
+.light .react-flow.map-flow .react-flow__controls-button:hover {
+  background: #EEE6EA !important;
 }
