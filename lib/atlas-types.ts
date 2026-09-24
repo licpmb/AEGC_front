@@ -11,6 +11,7 @@ export type NodeKind =
   | 'loader'
   | 'builder'
   | 'external'
+  | 'server'
 
 export type NodeStatus = 'prod' | 'staging' | 'dev' | 'deprecated'
 
@@ -163,7 +164,7 @@ export interface AtlasEdge {
   target: string
   label?: string
   direction: FlowDirection
-  protocol: 'IDoc' | 'OData' | 'REST' | 'SOAP' | 'JDBC' | 'Batch' | 'CDC' | 'SFTP'
+  protocol: 'IDoc' | 'OData' | 'REST' | 'SOAP' | 'JDBC' | 'Batch' | 'CDC' | 'SFTP' | 'Manual'
   health: 'ok' | 'degradado' | 'caido'
 }
 
@@ -175,6 +176,7 @@ export const KIND_META: Record<
   dispatcher: { label: 'Web Dispatcher', color: 'var(--chart-1)', group: 'core' },
   middleware: { label: 'Middleware', color: 'var(--chart-2)', group: 'integracion' },
   external: { label: 'Externo', color: 'var(--chart-2)', group: 'integracion' },
+  server: { label: 'Servidor', color: 'var(--chart-2)', group: 'integracion' },
   interface: { label: 'Interfaz', color: 'var(--chart-3)', group: 'aplicacion' },
   front: { label: 'Front', color: 'var(--chart-3)', group: 'aplicacion' },
   gateway: { label: 'Gateway', color: 'var(--chart-3)', group: 'aplicacion' },
