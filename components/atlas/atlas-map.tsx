@@ -402,35 +402,60 @@ function MapInner() {
     }
   }, [setNodes])
 
+  const persistLayoutNow = useCallback(() => {
+    if (!persistenceLoadedRef.current) return
+    try {
+      const payload: PersistedLayout = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        nodes: nodesRef.current.map((node) => ({
+          id: node.id,
+          position: { ...node.position },
+          style: node.style ? { ...node.style } : undefined,
+        })),
+        edgeHandles: Object.fromEntries(
+          Object.entries(edgeHandlesRef.current).map(([id, handles]) => [id, { ...handles }]),
+        ),
+      }
+      window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
+    } catch {
+      // Si el storage está bloqueado o lleno, el mapa sigue funcionando en memoria.
+    }
+  }, [])
+
   // Autoguardado local con debounce para no escribir durante cada frame de drag/resize.
   useEffect(() => {
     if (!persistenceLoadedRef.current) return
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
 
     persistTimerRef.current = setTimeout(() => {
-      try {
-        const payload: PersistedLayout = {
-          version: 1,
-          savedAt: new Date().toISOString(),
-          nodes: nodes.map((node) => ({
-            id: node.id,
-            position: { ...node.position },
-            style: node.style ? { ...node.style } : undefined,
-          })),
-          edgeHandles: Object.fromEntries(
-            Object.entries(edgeHandles).map(([id, handles]) => [id, { ...handles }]),
-          ),
-        }
-        window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
-      } catch {
-        // Si el storage está bloqueado o lleno, el mapa sigue funcionando en memoria.
-      }
-    }, 300)
+      persistLayoutNow()
+      persistTimerRef.current = null
+    }, 250)
 
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
-  }, [nodes, edgeHandles])
+  }, [nodes, edgeHandles, persistLayoutNow])
+
+  // Flush de seguridad: si el usuario sale, recarga o cierra la pestaña antes del
+  // debounce, persistimos el último estado visible del mapa.
+  useEffect(() => {
+    const flush = () => {
+      if (persistTimerRef.current) {
+        clearTimeout(persistTimerRef.current)
+        persistTimerRef.current = null
+      }
+      persistLayoutNow()
+    }
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+      flush()
+    }
+  }, [persistLayoutNow])
 
   const pushUndoSnapshot = useCallback(() => {
     if (undoingRef.current) return
@@ -542,6 +567,7 @@ function MapInner() {
               : node,
           ),
         )
+        requestAnimationFrame(() => persistLayoutNow())
         return
       }
 
@@ -567,6 +593,7 @@ function MapInner() {
               : node,
           ),
         )
+        requestAnimationFrame(() => persistLayoutNow())
         return
       }
 
@@ -602,8 +629,9 @@ function MapInner() {
           return { ...node, position: { x, y } }
         }),
       )
+      requestAnimationFrame(() => persistLayoutNow())
     },
-    [nodes, selectedNodeIds, setNodes, pushUndoSnapshot],
+    [nodes, selectedNodeIds, setNodes, pushUndoSnapshot, persistLayoutNow],
   )
 
   const autoArrange = useCallback(() => {
@@ -622,9 +650,10 @@ function MapInner() {
     )
 
     requestAnimationFrame(() => {
+      persistLayoutNow()
       void fitView({ duration: 400, padding: 0.15 })
     })
-  }, [nodes, visibleIds, setNodes, fitView, pushUndoSnapshot])
+  }, [nodes, visibleIds, setNodes, fitView, pushUndoSnapshot, persistLayoutNow])
 
   // Clear selection if the selected node becomes hidden
   useEffect(() => {
@@ -655,6 +684,7 @@ function MapInner() {
             hiddenChildren: collapsed.has(node.id) ? descendantCount(node.id) : 0,
             onToggleCollapse: toggleCollapse,
             onBeforeResize: pushUndoSnapshot,
+            onAfterResize: persistLayoutNow,
           } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
         }
       }),
@@ -669,6 +699,7 @@ function MapInner() {
     setNodes,
     toggleCollapse,
     pushUndoSnapshot,
+    persistLayoutNow,
   ])
 
   useEffect(() => {
@@ -781,7 +812,8 @@ function MapInner() {
       },
     }))
     setSelectedEdgeId(oldEdge.id)
-  }, [pushUndoSnapshot])
+    requestAnimationFrame(() => persistLayoutNow())
+  }, [pushUndoSnapshot, persistLayoutNow])
 
   // Un click selecciona la relación y habilita el cambio manual del punto de
   // origen/destino. Doble click conserva el acceso al catálogo de endpoints.
@@ -823,6 +855,9 @@ function MapInner() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeDragStart={() => pushUndoSnapshot()}
+          onNodeDragStop={() => {
+            requestAnimationFrame(() => persistLayoutNow())
+          }}
           nodeTypes={nodeTypes}
           onNodeClick={(event, n) => {
             setSelectedEdgeId(null)
