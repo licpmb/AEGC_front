@@ -180,18 +180,18 @@ type MultiNodeAction =
 
 function nodeWidth(n: Node): number {
   return (
-    n.measured?.width ??
-    (typeof n.width === 'number' ? n.width : undefined) ??
     (typeof n.style?.width === 'number' ? n.style.width : undefined) ??
+    (typeof n.width === 'number' ? n.width : undefined) ??
+    n.measured?.width ??
     190
   )
 }
 
 function nodeHeight(n: Node): number {
   return (
-    n.measured?.height ??
-    (typeof n.height === 'number' ? n.height : undefined) ??
     (typeof n.style?.height === 'number' ? n.style.height : undefined) ??
+    (typeof n.height === 'number' ? n.height : undefined) ??
+    n.measured?.height ??
     58
   )
 }
@@ -879,10 +879,21 @@ function MapInner() {
           multiSelectionKeyCode={['Shift', 'Control', 'Meta']}
           onSelectionChange={({ nodes: selectedNodes }) => {
             const ids = selectedNodes.map((node) => node.id)
-            setSelectedNodeIds(ids)
-            if (ids.length === 0) setSelectedId(null)
-            else if (ids.length === 1) setSelectedId(ids[0])
-            else setSelectedId(ids[ids.length - 1])
+            setSelectedNodeIds((prev) => {
+              const active = new Set(ids)
+              // Conserva el orden real en que el usuario fue seleccionando.
+              // React Flow devuelve los nodos en orden interno del grafo, no en
+              // orden de click; eso hacía que "el primero" cambiara solo.
+              const kept = prev.filter((id) => active.has(id))
+              const added = ids.filter((id) => !kept.includes(id))
+              const ordered = [...kept, ...added]
+
+              if (ordered.length === 0) setSelectedId(null)
+              else if (ordered.length === 1) setSelectedId(ordered[0])
+              else setSelectedId(ordered[ordered.length - 1])
+
+              return ordered
+            })
             setSelectedEdgeId(null)
           }}
           onPaneClick={() => {
