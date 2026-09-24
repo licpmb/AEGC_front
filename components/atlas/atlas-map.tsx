@@ -340,41 +340,52 @@ function MapInner() {
   const applyMultiNodeAction = useCallback(
     (action: MultiNodeAction) => {
       if (selectedNodeIds.length < 2) return
-      const reference = nodes.find((n) => n.id === selectedNodeIds[0])
-      if (!reference) return
 
+      const selectedNodes = nodes.filter((n) => selectedNodeIds.includes(n.id))
+      if (selectedNodes.length < 2) return
+
+      // Sólo las acciones de tamaño toman al primer seleccionado como referencia.
+      const reference = selectedNodes.find((n) => n.id === selectedNodeIds[0]) ?? selectedNodes[0]
       const refWidth = nodeWidth(reference)
       const refHeight = nodeHeight(reference)
-      const refCenterX = reference.position.x + refWidth / 2
-      const refCenterY = reference.position.y + refHeight / 2
-      const refRight = reference.position.x + refWidth
-      const refBottom = reference.position.y + refHeight
+
+      // Las acciones de alineación usan el conjunto completo seleccionado.
+      const left = Math.min(...selectedNodes.map((n) => n.position.x))
+      const right = Math.max(...selectedNodes.map((n) => n.position.x + nodeWidth(n)))
+      const top = Math.min(...selectedNodes.map((n) => n.position.y))
+      const bottom = Math.max(...selectedNodes.map((n) => n.position.y + nodeHeight(n)))
+      const centerX = (left + right) / 2
+      const centerY = (top + bottom) / 2
       const selected = new Set(selectedNodeIds)
 
       setNodes((prev) =>
         prev.map((node) => {
-          if (!selected.has(node.id) || node.id === reference.id) return node
+          if (!selected.has(node.id)) return node
+
           const width = nodeWidth(node)
           const height = nodeHeight(node)
 
           if (action === 'same-width') {
+            if (node.id === reference.id) return node
             return { ...node, style: { ...node.style, width: refWidth } }
           }
           if (action === 'same-height') {
+            if (node.id === reference.id) return node
             return { ...node, style: { ...node.style, height: refHeight } }
           }
           if (action === 'same-size') {
+            if (node.id === reference.id) return node
             return { ...node, style: { ...node.style, width: refWidth, height: refHeight } }
           }
 
           let x = node.position.x
           let y = node.position.y
-          if (action === 'align-left') x = reference.position.x
-          if (action === 'align-center-x') x = refCenterX - width / 2
-          if (action === 'align-right') x = refRight - width
-          if (action === 'align-top') y = reference.position.y
-          if (action === 'align-center-y') y = refCenterY - height / 2
-          if (action === 'align-bottom') y = refBottom - height
+          if (action === 'align-left') x = left
+          if (action === 'align-center-x') x = centerX - width / 2
+          if (action === 'align-right') x = right - width
+          if (action === 'align-top') y = top
+          if (action === 'align-center-y') y = centerY - height / 2
+          if (action === 'align-bottom') y = bottom - height
 
           return { ...node, position: { x, y } }
         }),
