@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileText, ExternalLink, AlertTriangle, Search } from 'lucide-react'
+import { FileText, ExternalLink, AlertTriangle, Search, Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ATLAS_NODES } from '@/lib/atlas-data'
+import { useAtlasNodes } from '@/lib/atlas-local'
+import { NodeEditor } from './node-editor'
 import { getDocCoverage, getDocCompleteness } from '@/lib/atlas-docs'
 import {
   COUNTRY_META,
@@ -43,11 +44,13 @@ function StatusDot({ status }: { status: DocStatus }) {
 
 export function DocCoverage() {
   const [q, setQ] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const atlasNodes = useAtlasNodes()
 
   const devs = useMemo(
     () =>
-      ATLAS_NODES.filter((n) => DEV_KINDS.has(n.kind) && !n.parentId)
-        .concat(ATLAS_NODES.filter((n) => n.kind === 'interface' && n.parentId))
+      atlasNodes.filter((n) => DEV_KINDS.has(n.kind) && !n.parentId)
+        .concat(atlasNodes.filter((n) => n.kind === 'interface' && n.parentId))
         .filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i)
         .filter((n) => n.label.toLowerCase().includes(q.toLowerCase()))
         .map((n) => ({
@@ -56,11 +59,11 @@ export function DocCoverage() {
           completeness: getDocCompleteness(n.id),
         }))
         .sort((a, b) => a.completeness - b.completeness),
-    [q],
+    [q, atlasNodes],
   )
 
   const summary = useMemo(() => {
-    const all = ATLAS_NODES.filter((n) => DEV_KINDS.has(n.kind) || n.kind === 'interface')
+    const all = atlasNodes.filter((n) => DEV_KINDS.has(n.kind) || n.kind === 'interface')
     const avg =
       all.length > 0
         ? Math.round(all.reduce((acc, n) => acc + getDocCompleteness(n.id), 0) / all.length)
@@ -76,10 +79,10 @@ export function DocCoverage() {
       }
     }
     return { avg, gaps, total: all.length }
-  }, [])
+  }, [atlasNodes])
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background">
       <div className="shrink-0 border-b border-border px-6 py-5">
         <div className="flex items-center gap-2">
           <FileText size={16} style={{ color: 'var(--chart-4)' }} />
@@ -179,15 +182,20 @@ export function DocCoverage() {
           {devs.map(({ node, coverage, completeness }) => (
             <div
               key={node.id}
-              className="grid grid-cols-[minmax(200px,1.4fr)_repeat(3,1fr)_120px] items-center gap-3 border-b border-border/60 py-3"
+              className="grid grid-cols-[minmax(200px,1.4fr)_repeat(3,1fr)_120px] items-center gap-3 border-b border-border/60 py-3 hover:bg-accent/20"
             >
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[13px] font-medium">{node.label}</p>
-                  {node.country && <span aria-hidden>{COUNTRY_META[node.country].flag}</span>}
+              <button type="button" onClick={() => setEditingId(node.id)} className="group min-w-0 text-left" title="Editar interfaz / nodo">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-[13px] font-medium">{node.label}</p>
+                      {node.country && <span aria-hidden>{COUNTRY_META[node.country].flag}</span>}
+                    </div>
+                    <p className="truncate text-[11px] text-muted-foreground">{node.domain}</p>
+                  </div>
+                  <Pencil size={12} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"/>
                 </div>
-                <p className="truncate text-[11px] text-muted-foreground">{node.domain}</p>
-              </div>
+              </button>
 
               {coverage.map((d) => (
                 <div key={d.kind} className="min-w-0">
@@ -259,6 +267,10 @@ export function DocCoverage() {
           )}
         </div>
       </ScrollArea>
+      {editingId && (() => {
+        const node = atlasNodes.find((item) => item.id === editingId)
+        return node ? <div className="absolute inset-y-0 right-0 z-30"><NodeEditor node={node} onClose={() => setEditingId(null)}/></div> : null
+      })()}
     </div>
   )
 }
