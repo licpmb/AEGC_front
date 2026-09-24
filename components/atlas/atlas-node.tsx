@@ -1,6 +1,6 @@
 'use client'
 
-import { Handle, Position, NodeResizer, NodeToolbar, type NodeProps } from '@xyflow/react'
+import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react'
 import {
   Database,
   Server,
@@ -16,8 +16,6 @@ import {
   Radio,
   ChevronDown,
   ChevronRight,
-  MoveHorizontal,
-  MoveVertical,
 } from 'lucide-react'
 import type { AtlasNode, NodeKind } from '@/lib/atlas-types'
 import { KIND_META, COUNTRY_META } from '@/lib/atlas-types'
@@ -45,12 +43,10 @@ export type AtlasFlowNodeData = {
   dimmed: boolean
   focused: boolean
   showIssues: boolean
-  orientation?: 'h' | 'v'
   hasChildren?: boolean
   collapsed?: boolean
   hiddenChildren?: number
   onToggleCollapse?: (id: string) => void
-  onSetOrientation?: (id: string, o: 'h' | 'v') => void
 }
 
 export function AtlasFlowNode({ data, selected }: NodeProps) {
@@ -61,12 +57,10 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
     dimmed,
     focused,
     showIssues,
-    orientation = 'h',
     hasChildren,
     collapsed,
     hiddenChildren,
     onToggleCollapse,
-    onSetOrientation,
   } = data as unknown as AtlasFlowNodeData
   if (!node) return null
   const meta = KIND_META[node.kind]
@@ -101,39 +95,6 @@ export function AtlasFlowNode({ data, selected }: NodeProps) {
         lineClassName="!border-[var(--chart-3)]"
         handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--chart-3)] !bg-background"
       />
-      <NodeToolbar isVisible={Boolean(selected)} position={Position.Top} offset={10}>
-        <div className="flex items-center gap-0.5 rounded-md border border-border bg-popover p-0.5 shadow-lg">
-          <span className="px-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-            Conexión
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onSetOrientation?.(node.id, 'h')
-            }}
-            title="Conectar por los lados (horizontal)"
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded',
-              orientation === 'h' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <MoveHorizontal size={13} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onSetOrientation?.(node.id, 'v')
-            }}
-            title="Conectar por arriba/abajo (vertical)"
-            className={cn(
-              'flex h-6 w-6 items-center justify-center rounded',
-              orientation === 'v' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-accent',
-            )}
-          >
-            <MoveVertical size={13} />
-          </button>
-        </div>
-      </NodeToolbar>
       <div
         className={cn(
           'group relative flex h-full w-full items-center gap-3 rounded-lg border backdrop-blur-sm transition-[opacity,transform,box-shadow] duration-300',
