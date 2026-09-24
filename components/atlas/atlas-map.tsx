@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -213,7 +213,8 @@ type PersistedLayout = UndoSnapshot & {
   savedAt: string
 }
 
-const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v2'
+const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v3'
+const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v2'
 
 function MapInner() {
   const atlasNodes = useAtlasNodes()
@@ -384,8 +385,10 @@ function MapInner() {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY)
-      if (raw) {
-        const saved = JSON.parse(raw) as PersistedLayout
+      const legacyRaw = window.localStorage.getItem(PREVIOUS_LAYOUT_STORAGE_KEY)
+      if (raw || legacyRaw) {
+        const saved = JSON.parse(raw ?? legacyRaw ?? '{}') as PersistedLayout
+        const preserveLegacyPositions = Boolean(raw)
         if (saved?.version === 1 && Array.isArray(saved.nodes)) {
           const byId = new Map(saved.nodes.map((node) => [node.id, node]))
           setNodes((prev) =>
@@ -394,7 +397,7 @@ function MapInner() {
               if (!persisted) return node
               return {
                 ...node,
-                position: { ...persisted.position },
+                position: preserveLegacyPositions ? { ...persisted.position } : node.position,
                 style: persisted.style ? { ...persisted.style } : node.style,
               }
             }),
@@ -912,7 +915,7 @@ function MapInner() {
       <div className="relative min-w-0 flex-1">
         <MapToolbar
           filters={filters}
-          onChange={setFilters}
+          onChange={(next) => startTransition(() => setFilters(next))}
           onFit={() => {
             setSelectedId(null)
             setSelectedNodeIds([])
@@ -942,14 +945,16 @@ function MapInner() {
           }}
           nodeTypes={nodeTypes}
           onNodeClick={(event, n) => {
-            setSelectedEdgeId(null)
             const additive = event.shiftKey || event.ctrlKey || event.metaKey
-            setSelectedNodeIds((prev) => {
-              if (!additive) return [n.id]
-              if (prev.includes(n.id)) return prev.filter((id) => id !== n.id)
-              return [...prev, n.id]
+            startTransition(() => {
+              setSelectedEdgeId(null)
+              setSelectedNodeIds((prev) => {
+                if (!additive) return [n.id]
+                if (prev.includes(n.id)) return prev.filter((id) => id !== n.id)
+                return [...prev, n.id]
+              })
+              handleSelect(n.id)
             })
-            handleSelect(n.id)
           }}
           onEdgeClick={handleEdgeClick}
           onEdgeDoubleClick={handleEdgeDoubleClick}
