@@ -483,7 +483,6 @@ function MapInner() {
         return {
           ...rf,
           hidden: !visible,
-          selected: selectedNodeIds.includes(node.id),
           data: {
             node,
             openIssues: stats.open,
@@ -503,7 +502,6 @@ function MapInner() {
     visibleIds,
     focusSet,
     selectedId,
-    selectedNodeIds,
     issueStats,
     filters.showIssues,
     collapsed,
