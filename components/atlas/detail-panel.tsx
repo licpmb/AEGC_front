@@ -76,6 +76,7 @@ export function DetailPanel({
   onOpenArchimate,
   onOpenEndpoints,
   onEdit,
+  onEditRelation,
 }: {
   node: AtlasNode
   nodes: AtlasNode[]
@@ -86,6 +87,7 @@ export function DetailPanel({
   onOpenArchimate?: (nodeId: string) => void
   onOpenEndpoints?: (nodeId: string) => void
   onEdit?: (nodeId: string) => void
+  onEditRelation?: (edgeId: string) => void
 }) {
   const meta = KIND_META[node.kind]
   const byId = new Map(nodes.map((n) => [n.id, n]))
@@ -404,13 +406,14 @@ export function DetailPanel({
               {incoming.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => onSelect(e.source)}
+                  onClick={() => onEditRelation?.(e.id)}
                   className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-ring hover:bg-accent"
                 >
                   <ArrowLeft size={12} className="shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                     {byId.get(e.source)?.label}
                   </span>
+                  <Pencil size={11} className="shrink-0 text-muted-foreground" />
                   <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                     {e.protocol}
                   </span>
@@ -424,13 +427,14 @@ export function DetailPanel({
               {outgoing.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => onSelect(e.target)}
+                  onClick={() => onEditRelation?.(e.id)}
                   className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2 text-left transition-colors hover:border-ring hover:bg-accent"
                 >
                   <ArrowRight size={12} className="shrink-0" style={{ color: 'var(--chart-3)' }} />
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
                     {byId.get(e.target)?.label}
                   </span>
+                  <Pencil size={11} className="shrink-0 text-muted-foreground" />
                   <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                     {e.protocol}
                   </span>
