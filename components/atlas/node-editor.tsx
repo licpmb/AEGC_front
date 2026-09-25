@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { KIND_META, type AtlasNode, type CountryCode, type Environment, type NodeKind, type NodeStatus } from '@/lib/atlas-types'
-import { saveAtlasNodeEnvironments, saveAtlasNodeOverride } from '@/lib/atlas-local'
+import { saveAtlasNodeOverride } from '@/lib/atlas-local'
 
 export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => void }) {
   const [label, setLabel] = useState(node.label)
@@ -26,6 +26,27 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
   }, [node])
 
   function save() {
+    const normalizedEnvironments = environments.map((env) => {
+      const url = env.url?.trim() || undefined
+      let server = env.server.trim()
+
+      // Si el usuario carga sólo la URL, obtenemos el host automáticamente.
+      if (!server && url) {
+        try {
+          const parsed = new URL(url)
+          server = parsed.host
+        } catch {
+          // Se conserva vacío para que el ambiente no se pierda por una URL incompleta.
+        }
+      }
+
+      return {
+        ...env,
+        server,
+        url,
+      }
+    })
+
     saveAtlasNodeOverride(node.id, {
       label: label.trim() || node.label,
       kind,
@@ -35,17 +56,9 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
       status,
       country: country || undefined,
       tech: tech.split(',').map((x) => x.trim()).filter(Boolean),
+      environments: normalizedEnvironments,
+      environmentsReplace: true,
     })
-    saveAtlasNodeEnvironments(
-      node.id,
-      environments
-        .map((env) => ({
-          ...env,
-          server: env.server.trim(),
-          url: env.url?.trim() || undefined,
-        }))
-        .filter((env) => env.server),
-    )
     onClose()
   }
 
