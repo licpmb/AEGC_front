@@ -24,9 +24,44 @@ export function loadAtlasNodeOverrides(): Record<string, AtlasNodeOverride> {
   }
 }
 
+function mergeEnvironments(
+  base: AtlasNode['environments'] = [],
+  incoming: AtlasNode['environments'] = [],
+): AtlasNode['environments'] {
+  const merged = [...base]
+  for (const env of incoming) {
+    const exact = merged.findIndex((item) =>
+      item.name === env.name &&
+      item.server === env.server &&
+      (item.url ?? '') === (env.url ?? '')
+    )
+    if (exact >= 0) {
+      merged[exact] = { ...merged[exact], ...env }
+      continue
+    }
+
+    // Si es el mismo ambiente y mismo host, actualizamos; si cambia host/URL,
+    // conservamos ambos porque pueden ser componentes distintos dentro del ambiente.
+    const sameHost = merged.findIndex((item) =>
+      item.name === env.name && item.server === env.server
+    )
+    if (sameHost >= 0) merged[sameHost] = { ...merged[sameHost], ...env }
+    else merged.push(env)
+  }
+  return merged
+}
+
 export function saveAtlasNodeOverride(id: string, value: AtlasNodeOverride) {
   const current = loadAtlasNodeOverrides()
-  const next = { ...current, [id]: { ...(current[id] ?? {}), ...value } }
+  const previous = current[id] ?? {}
+  const nextValue: AtlasNodeOverride = {
+    ...previous,
+    ...value,
+    ...(value.environments
+      ? { environments: mergeEnvironments(previous.environments, value.environments) }
+      : {}),
+  }
+  const next = { ...current, [id]: nextValue }
   localStorage.setItem(KEY, JSON.stringify(next))
   window.dispatchEvent(new CustomEvent(EVENT))
 }
@@ -53,7 +88,14 @@ export function useAtlasNodes() {
 
   return useMemo(
     () => [...ATLAS_NODES, ...importedNodes.filter((n) => !ATLAS_NODES.some((base) => base.id === n.id))]
-      .map((node) => ({ ...node, ...(overrides[node.id] ?? {}) })),
+      .map((node) => {
+        const override = overrides[node.id] ?? {}
+        return {
+          ...node,
+          ...override,
+          environments: mergeEnvironments(node.environments, override.environments),
+        }
+      }),
     [overrides, importedNodes],
   )
 }
