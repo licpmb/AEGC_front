@@ -15,6 +15,7 @@ import {
   FileText,
   Eye,
   Pencil,
+  Workflow,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -310,6 +311,83 @@ export function DetailPanel({
                       >
                         <ExternalLink size={12} />
                       </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {node.artifacts && node.artifacts.length > 0 && (
+            <div>
+              <SectionTitle icon={Workflow}>Artifacts CPI ({node.artifacts.length})</SectionTitle>
+              <div className="overflow-hidden rounded-lg border border-border">
+                {node.artifacts.map((artifact, i) => (
+                  <div
+                    key={artifact.id}
+                    className={cn(
+                      'bg-card px-3 py-2.5',
+                      i > 0 && 'border-t border-border',
+                    )}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-semibold leading-snug">{artifact.name}</p>
+                        <p className="mt-0.5 font-mono text-[9.5px] uppercase tracking-wide text-muted-foreground">
+                          {artifact.type}
+                          {artifact.direction ? ` · ${artifact.direction}` : ''}
+                        </p>
+                      </div>
+                      {artifact.referenceUrl && (
+                        <a
+                          href={artifact.referenceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0 text-muted-foreground hover:text-foreground"
+                          title="Abrir referencia en SAP Integration Suite"
+                        >
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {artifact.trigger && (
+                        <span className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[9px]">
+                          trigger {artifact.trigger}
+                        </span>
+                      )}
+                      {artifact.adapters?.map((adapter) => (
+                        <span key={adapter} className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                          {adapter}
+                        </span>
+                      ))}
+                      {artifact.deployment && (
+                        <span
+                          className="rounded-sm px-1.5 py-0.5 font-mono text-[9px]"
+                          style={{
+                            background:
+                              artifact.deployment === 'deployed'
+                                ? 'color-mix(in oklab, var(--chart-4) 16%, transparent)'
+                                : 'color-mix(in oklab, var(--chart-1) 16%, transparent)',
+                            color:
+                              artifact.deployment === 'deployed'
+                                ? 'var(--chart-4)'
+                                : 'var(--chart-1)',
+                          }}
+                        >
+                          {artifact.deployment === 'deployed' ? 'deployed' : artifact.deployment.replace('_', ' ')}
+                        </span>
+                      )}
+                      {artifact.runtime === 'started' && (
+                        <span className="rounded-sm bg-secondary px-1.5 py-0.5 font-mono text-[9px] text-secondary-foreground">
+                          runtime started
+                        </span>
+                      )}
+                    </div>
+
+                    {artifact.note && (
+                      <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">{artifact.note}</p>
                     )}
                   </div>
                 ))}
