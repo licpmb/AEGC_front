@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   FileJson,
   Files,
+  GitMerge,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -124,6 +125,7 @@ export function ImportReconcile() {
   const genericInputRef = useRef<HTMLInputElement>(null)
   // acciones elegidas por item: aplicar | omitir
   const [actions, setActions] = useState<Record<string, 'aplicar' | 'omitir'>>({})
+  const [mappings, setMappings] = useState<Record<string, string>>({})
 
   const result = liveResult ?? (source ? RECONCILE_RESULTS[source] ?? null : null)
 
@@ -246,24 +248,51 @@ export function ImportReconcile() {
     setDetectedFiles([])
     setScanned(false)
     setActions({})
+    setMappings({})
   }
 
   const toApply = Object.values(actions).filter((a) => a === 'aplicar').length
 
   function applySelected() {
     if (!liveResult) return
+
+    const storedMappings = (() => {
+      try { return JSON.parse(localStorage.getItem('aegc:import-mappings:v1') ?? '{}') as Record<string, string> }
+      catch { return {} as Record<string, string> }
+    })()
+
     for (const item of liveResult.items) {
       if (actions[item.id] !== 'aplicar') continue
+      const mappedNodeId = mappings[item.id]
+
+      if (mappedNodeId) {
+        storedMappings[`${liveResult.source}|${item.label}`] = mappedNodeId
+      }
+
       for (const mutation of item.mutations ?? []) {
         if (mutation.kind === 'patch-node') {
-          saveAtlasNodeOverride(mutation.nodeId, mutation.patch)
+          saveAtlasNodeOverride(mappedNodeId ?? mutation.nodeId, mutation.patch)
         } else if (mutation.kind === 'upsert-node') {
-          upsertImportedNode(mutation.node)
+          if (mappedNodeId) {
+            saveAtlasNodeOverride(mappedNodeId, {
+              description: mutation.node.description,
+              tech: mutation.node.tech,
+              environments: mutation.node.environments,
+            })
+          } else {
+            upsertImportedNode(mutation.node)
+          }
         } else if (mutation.kind === 'upsert-edge') {
-          upsertImportedEdge(mutation.edge)
+          upsertImportedEdge({
+            ...mutation.edge,
+            source: mappings[item.id] && mutation.edge.source === item.matchedAtlasId ? mappings[item.id] : mutation.edge.source,
+            target: mappings[item.id] && mutation.edge.target === item.matchedAtlasId ? mappings[item.id] : mutation.edge.target,
+          })
         }
       }
     }
+
+    try { localStorage.setItem('aegc:import-mappings:v1', JSON.stringify(storedMappings)) } catch {}
     setActions((prev) => Object.fromEntries(Object.keys(prev).map((id) => [id, 'omitir'])))
   }
 
@@ -478,6 +507,12 @@ export function ImportReconcile() {
                     key={item.id}
                     item={item}
                     action={actions[item.id]}
+                    atlasNodes={atlasNodes}
+                    mappedNodeId={mappings[item.id]}
+                    onMap={(nodeId) => {
+                      setMappings((prev) => ({ ...prev, [item.id]: nodeId }))
+                      setActions((prev) => ({ ...prev, [item.id]: 'aplicar' }))
+                    }}
                     onAction={(a) => setActions((p) => ({ ...p, [item.id]: a }))}
                   />
                 ))}
@@ -493,14 +528,22 @@ export function ImportReconcile() {
 function ReconcileRow({
   item,
   action,
+  atlasNodes,
+  mappedNodeId,
+  onMap,
   onAction,
 }: {
   item: ReconcileItem
   action: 'aplicar' | 'omitir'
+  atlasNodes: ReturnType<typeof useAtlasNodes>
+  mappedNodeId?: string
+  onMap: (nodeId: string) => void
   onAction: (a: 'aplicar' | 'omitir') => void
 }) {
   const [open, setOpen] = useState(false)
-  const matched = nodeLabel(item.matchedAtlasId)
+  const [mappingOpen, setMappingOpen] = useState(false)
+  const mapped = mappedNodeId ? atlasNodes.find((n) => n.id === mappedNodeId)?.label ?? mappedNodeId : null
+  const matched = mapped ?? nodeLabel(item.matchedAtlasId)
   const canApply = item.status !== 'sin_cambios' && item.status !== 'falta_en_fuente'
   const hasDetail = (item.changes?.length ?? 0) > 0 || item.aiSummary
 
@@ -545,29 +588,42 @@ function ReconcileRow({
 
         {/* acción */}
         {canApply ? (
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
-            <button
-              onClick={() => onAction('aplicar')}
-              className={cn(
-                'px-2.5 py-1 text-[11px] font-medium transition-colors',
-                action === 'aplicar'
-                  ? 'bg-[color:var(--chart-4)] text-[color:var(--background)]'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {item.status === 'falta_en_modelo' ? 'Agregar' : 'Aplicar'}
-            </button>
-            <button
-              onClick={() => onAction('omitir')}
-              className={cn(
-                'border-l border-border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                action === 'omitir'
-                  ? 'bg-secondary text-secondary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Omitir
-            </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {(item.status === 'ambiguo' || item.status === 'falta_en_modelo') && (
+              <Button
+                variant={mappedNodeId ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-7 gap-1.5 px-2 text-[11px]"
+                onClick={() => setMappingOpen((v) => !v)}
+              >
+                <GitMerge size={12} />
+                {mappedNodeId ? 'Mapeado' : 'Mapear'}
+              </Button>
+            )}
+            <div className="flex overflow-hidden rounded-md border border-border">
+              <button
+                onClick={() => onAction('aplicar')}
+                className={cn(
+                  'px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  action === 'aplicar'
+                    ? 'bg-[color:var(--chart-4)] text-[color:var(--background)]'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {mappedNodeId ? 'Vincular' : item.status === 'falta_en_modelo' ? 'Agregar' : 'Aplicar'}
+              </button>
+              <button
+                onClick={() => onAction('omitir')}
+                className={cn(
+                  'border-l border-border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  action === 'omitir'
+                    ? 'bg-secondary text-secondary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Omitir
+              </button>
+            </div>
           </div>
         ) : (
           <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -575,6 +631,38 @@ function ReconcileRow({
           </span>
         )}
       </div>
+
+      {mappingOpen && (
+        <div className="border-t border-border bg-background/60 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 font-mono text-[9.5px] uppercase tracking-wide text-muted-foreground">
+                Mapear contra nodo existente
+              </p>
+              <select
+                value={mappedNodeId ?? ''}
+                onChange={(e) => e.target.value && onMap(e.target.value)}
+                className="h-9 w-full rounded-md border border-border bg-background px-2 text-[12px] outline-none focus:border-ring"
+              >
+                <option value="">Seleccioná un nodo del Atlas…</option>
+                {atlasNodes
+                  .slice()
+                  .sort((a, b) => a.label.localeCompare(b.label))
+                  .map((node) => (
+                    <option key={node.id} value={node.id}>
+                      {node.label} · {node.kind}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {mappedNodeId && (
+              <div className="max-w-sm rounded-md border border-[color:var(--chart-4)]/30 bg-[color-mix(in_oklab,var(--chart-4)_10%,transparent)] px-3 py-2 text-[11px]">
+                Este hallazgo se vinculará con <strong>{mapped}</strong> en vez de crear un nodo nuevo.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* detalle: diff + resumen IA */}
       {open && hasDetail && (
