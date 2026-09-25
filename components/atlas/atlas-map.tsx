@@ -363,7 +363,7 @@ function MapInner() {
         if (!envMatch) continue
       }
 
-      if (filters.direction !== 'todos' && !dirNodes.has(n.id)) continue
+      if (mapFilters.direction !== 'todos' && !dirNodes.has(n.id)) continue
       if (mapFilters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) continue
 
       if (q) {
