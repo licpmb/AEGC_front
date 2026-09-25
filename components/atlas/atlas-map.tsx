@@ -461,6 +461,11 @@ function MapInner() {
   const createdEdgesRef = useRef(createdEdges)
   const relationOverridesRef = useRef(relationOverrides)
   const deletedEdgeIdsRef = useRef(deletedEdgeIds)
+  const groupDragRef = useRef<{
+    id: string
+    origin: { x: number; y: number }
+    descendants: Map<string, { x: number; y: number }>
+  } | null>(null)
   const persistenceLoadedRef = useRef(false)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1241,6 +1246,68 @@ function MapInner() {
     }
   }, [])
 
+  const beginNodeDrag = useCallback((_: unknown, dragged: Node) => {
+    pushUndoSnapshot()
+
+    const modelNode = atlasNodeById.get(dragged.id)
+    if (!modelNode || modelNode.kind !== 'platform') {
+      groupDragRef.current = null
+      return
+    }
+
+    const descendantIds = new Set<string>()
+    const stack = [...(CHILDREN_OF.get(dragged.id) ?? [])]
+    while (stack.length) {
+      const childId = stack.pop() as string
+      descendantIds.add(childId)
+      stack.push(...(CHILDREN_OF.get(childId) ?? []))
+    }
+
+    const descendants = new Map<string, { x: number; y: number }>()
+    for (const node of nodesRef.current) {
+      if (descendantIds.has(node.id)) {
+        descendants.set(node.id, { ...node.position })
+      }
+    }
+
+    groupDragRef.current = {
+      id: dragged.id,
+      origin: { ...dragged.position },
+      descendants,
+    }
+  }, [atlasNodeById, pushUndoSnapshot])
+
+  const moveGroupedChildren = useCallback((_: unknown, dragged: Node) => {
+    const active = groupDragRef.current
+    if (!active || active.id !== dragged.id) return
+
+    const dx = dragged.position.x - active.origin.x
+    const dy = dragged.position.y - active.origin.y
+
+    setNodes((prev) => {
+      let changed = false
+      const next = prev.map((node) => {
+        const start = active.descendants.get(node.id)
+        if (!start) return node
+        changed = true
+        return {
+          ...node,
+          position: {
+            x: start.x + dx,
+            y: start.y + dy,
+          },
+        }
+      })
+      if (changed) nodesRef.current = next
+      return changed ? next : prev
+    })
+  }, [setNodes])
+
+  const endNodeDrag = useCallback(() => {
+    groupDragRef.current = null
+    requestAnimationFrame(() => persistLayoutNow())
+  }, [persistLayoutNow])
+
   const flowNodes = useMemo(() => {
     const projected: Node[] = []
     for (const id of visibleIds) {
@@ -1312,10 +1379,9 @@ function MapInner() {
           edges={edges}
           onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
-          onNodeDragStart={() => pushUndoSnapshot()}
-          onNodeDragStop={() => {
-            requestAnimationFrame(() => persistLayoutNow())
-          }}
+          onNodeDragStart={beginNodeDrag}
+          onNodeDrag={moveGroupedChildren}
+          onNodeDragStop={endNodeDrag}
           nodeTypes={nodeTypes}
           onNodeClick={(event, n) => {
             const additive = event.shiftKey || event.ctrlKey || event.metaKey
