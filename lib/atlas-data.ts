@@ -19,6 +19,19 @@ export const ATLAS_NODES: AtlasNode[] = [
     tech: ['SAP S/4HANA RISE'],
   },
   {
+    id: 'sap-integration-suite',
+    label: 'SAP Integration Suite',
+    kind: 'platform',
+    status: 'prod',
+    domain: 'Integración',
+    owner: 'Integraciones / SAP',
+    description: 'Agrupador lógico de capacidades de SAP Integration Suite. Contiene Cloud Integration (CPI) y API Management; no representa un hop adicional de red.',
+    x: 500, y: -240,
+    width: 360,
+    height: 380,
+    tech: ['SAP Integration Suite'],
+  },
+  {
     id: 'cpi',
     label: 'SAP CPI',
     kind: 'middleware',
@@ -27,6 +40,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     owner: 'Integraciones',
     description: 'SAP Cloud Integration (CPI). Ejecuta iFlows para KETAN, Consumo en Línea, DMP, CAOLIX, Factura Electrónica e Identity. API Management se modela aparte: los APIs estándar de pedidos de GCC están publicados/gobernados allí y no se asume paso por CPI sin evidencia del target del proxy.',
     x: 560, y: 0,
+    parentId: 'sap-integration-suite',
     tech: ['SAP Integration Suite / CPI'],
   },
   {
@@ -635,6 +649,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     owner: 'Integraciones / SAP',
     description: 'SAP API Management. En Engage se observan productos publicados CEPAS_Pedidos_Venta_SD (9 APIs/proxies de Sales Order y Customer Return) y CAOLIX (API Business Partner). Un Product agrupa APIs; no es un iFlow. Para GCC se modela APIM → API estándar SAP → S/4. Un salto APIM → CPI sólo debe agregarse si el Target Endpoint del proxy lo confirma.',
     x: 560, y: -180,
+    parentId: 'sap-integration-suite',
     tech: ['SAP Integration Suite', 'API Management'],
   },
 
