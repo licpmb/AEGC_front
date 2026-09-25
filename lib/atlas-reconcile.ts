@@ -24,7 +24,7 @@ export interface FieldChange {
 export interface ReconcileItem {
   id: string
   /** qué tipo de entidad: nodo, relación, endpoint, documento… */
-  entity: 'nodo' | 'relación' | 'endpoint' | 'documento' | 'ambiente'
+  entity: 'nodo' | 'relación' | 'endpoint' | 'documento' | 'ambiente' | 'datastore'
   /** nombre legible del elemento en la fuente */
   label: string
   status: ReconcileStatus
