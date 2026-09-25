@@ -289,49 +289,64 @@ export function ImportReconcile() {
 
       {/* selección de fuente */}
       {!source && (
-        <div className="grid flex-1 place-items-center p-6">
+        <div
+          className={cn(
+            'relative flex flex-1 items-center justify-center p-6 transition-colors',
+            dragging && 'bg-[color-mix(in_oklab,var(--chart-3)_7%,transparent)]',
+          )}
+          onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            const next = e.relatedTarget as Node | null
+            if (!next || !e.currentTarget.contains(next)) setDragging(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragging(false)
+            void loadDroppedFiles(Array.from(e.dataTransfer.files))
+          }}
+        >
+          <input
+            ref={genericInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept=".json,.yaml,.yml,.archimate,.xml,.docx,.pdf,.xlsx,.vsdx"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              if (files.length) void loadDroppedFiles(files)
+              e.currentTarget.value = ''
+            }}
+          />
+
+          {dragging && (
+            <div className="pointer-events-none absolute inset-4 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_12%,var(--background))]">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-secondary">
+                  <Files size={27} />
+                </span>
+                <p className="text-[16px] font-semibold">Soltá los archivos en cualquier lugar</p>
+                <p className="text-[12px] text-muted-foreground">AEGC identifica automáticamente el tipo de artefacto.</p>
+              </div>
+            </div>
+          )}
+
           <div className="w-full max-w-4xl">
-            <div
-              onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
-              onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-              onDragLeave={(e) => {
-                e.preventDefault()
-                if (e.currentTarget === e.target) setDragging(false)
-              }}
-              onDrop={(e) => {
-                e.preventDefault()
-                setDragging(false)
-                void loadDroppedFiles(Array.from(e.dataTransfer.files))
-              }}
+            <button
+              type="button"
               onClick={() => genericInputRef.current?.click()}
-              className={cn(
-                'mb-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition-colors',
-                dragging
-                  ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_10%,transparent)]'
-                  : 'border-border bg-card/50 hover:border-[var(--chart-3)]',
-              )}
+              className="mb-6 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/50 px-6 py-9 text-center transition-colors hover:border-[var(--chart-3)]"
             >
-              <input
-                ref={genericInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                accept=".json,.yaml,.yml,.archimate,.xml,.docx,.pdf,.xlsx,.vsdx"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? [])
-                  if (files.length) void loadDroppedFiles(files)
-                  e.currentTarget.value = ''
-                }}
-              />
               <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
                 <Files size={23} />
               </span>
-              <p className="text-[15px] font-semibold">Arrastrá y soltá los documentos acá</p>
+              <p className="text-[15px] font-semibold">Arrastrá y soltá los documentos en cualquier lugar de esta pantalla</p>
               <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
                 AEGC identifica automáticamente si es AppSettings, Postman, OpenAPI, ArchiMate o documentación.
-                También podés hacer clic para elegir uno o varios archivos.
+                También podés hacer clic acá para elegir uno o varios archivos.
               </p>
-            </div>
+            </button>
 
             <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               O elegí el tipo manualmente
