@@ -252,6 +252,7 @@ function MapInner() {
     query: '',
     groups: ['core', 'plataforma', 'integracion', 'aplicacion', 'datos', 'externo'],
     countries: [],
+    environments: [],
     direction: 'todos',
     showIssues: true,
     onlyWithIssues: false,
@@ -347,6 +348,10 @@ function MapInner() {
         if (!filters.groups.includes(KIND_META[n.kind].group)) return false
         if (filters.countries.length > 0 && n.country && !filters.countries.includes(n.country))
           return false
+        if (filters.environments.length > 0) {
+          const envs = new Set(n.environments?.map((env) => env.name) ?? [])
+          if (!filters.environments.some((env) => envs.has(env))) return false
+        }
         if (filters.direction !== 'todos' && !dirNodes.has(n.id)) return false
         if (filters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) return false
         if (q) {
