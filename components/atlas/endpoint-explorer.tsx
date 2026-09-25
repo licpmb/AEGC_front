@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { X, Search, Lock, ChevronDown, ChevronRight, Copy, ArrowRight } from 'lucide-react'
-import { ATLAS_NODES } from '@/lib/atlas-data'
+import { useAtlasNodes } from '@/lib/atlas-local'
 import type { AtlasNode, Endpoint, EndpointScope } from '@/lib/atlas-types'
 import { cn } from '@/lib/utils'
 
@@ -180,8 +180,9 @@ export function EndpointExplorer({
   connectionToId?: string | null
   onClose: () => void
 }) {
-  const node = ATLAS_NODES.find((n) => n.id === nodeId) as AtlasNode | undefined
-  const other = connectionToId ? ATLAS_NODES.find((n) => n.id === connectionToId) : null
+  const atlasNodes = useAtlasNodes()
+  const node = atlasNodes.find((n) => n.id === nodeId) as AtlasNode | undefined
+  const other = connectionToId ? atlasNodes.find((n) => n.id === connectionToId) : null
 
   const envOptions = useMemo(() => {
     const set = new Set<string>()
