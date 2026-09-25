@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { KIND_META, type AtlasNode, type CountryCode, type NodeKind, type NodeStatus } from '@/lib/atlas-types'
-import { saveAtlasNodeOverride } from '@/lib/atlas-local'
+import { KIND_META, type AtlasNode, type CountryCode, type Environment, type NodeKind, type NodeStatus } from '@/lib/atlas-types'
+import { saveAtlasNodeEnvironments, saveAtlasNodeOverride } from '@/lib/atlas-local'
 
 export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => void }) {
   const [label, setLabel] = useState(node.label)
@@ -17,10 +17,12 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
   const [status, setStatus] = useState<NodeStatus>(node.status)
   const [country, setCountry] = useState<CountryCode | ''>(node.country ?? '')
   const [tech, setTech] = useState((node.tech ?? []).join(', '))
+  const [environments, setEnvironments] = useState<Environment[]>(node.environments ?? [])
 
   useEffect(() => {
     setLabel(node.label); setKind(node.kind); setOwner(node.owner); setDomain(node.domain); setDescription(node.description)
     setStatus(node.status); setCountry(node.country ?? ''); setTech((node.tech ?? []).join(', '))
+    setEnvironments(node.environments ?? [])
   }, [node])
 
   function save() {
@@ -34,6 +36,16 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
       country: country || undefined,
       tech: tech.split(',').map((x) => x.trim()).filter(Boolean),
     })
+    saveAtlasNodeEnvironments(
+      node.id,
+      environments
+        .map((env) => ({
+          ...env,
+          server: env.server.trim(),
+          url: env.url?.trim() || undefined,
+        }))
+        .filter((env) => env.server),
+    )
     onClose()
   }
 
@@ -68,6 +80,81 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
         </label>
       </div>
       <label className="block"><span className="mb-1 block text-muted-foreground">Stack / tecnologías</span><Input value={tech} onChange={(e) => setTech(e.target.value)} placeholder="REST, .NET, SQL Server"/></label>
+
+      <section className="space-y-2 rounded-lg border border-border bg-background/50 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[12px] font-semibold">Ambientes</p>
+            <p className="text-[10.5px] text-muted-foreground">DEV, QAS y PRD con host/servidor, URL y estado.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-[11px]"
+            onClick={() => setEnvironments((prev) => [
+              ...prev,
+              { name: 'Desarrollo', server: '', url: '', status: 'ok' },
+            ])}
+          >
+            <Plus size={12}/>Agregar
+          </Button>
+        </div>
+
+        {environments.length === 0 && (
+          <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-[11px] text-muted-foreground">
+            Este nodo todavía no tiene ambientes cargados.
+          </p>
+        )}
+
+        {environments.map((env, index) => (
+          <div key={index} className="space-y-2 rounded-md border border-border bg-card p-2.5">
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <select
+                className="h-8 rounded-md border border-border bg-background px-2 text-[11px]"
+                value={env.name}
+                onChange={(e) => setEnvironments((prev) => prev.map((item, i) => i === index ? { ...item, name: e.target.value as Environment['name'] } : item))}
+              >
+                <option value="Desarrollo">DEV · Desarrollo</option>
+                <option value="QA">QAS · Testing</option>
+                <option value="Producción">PRD · Producción</option>
+                <option value="Staging">STG · Staging</option>
+              </select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                onClick={() => setEnvironments((prev) => prev.filter((_, i) => i !== index))}
+                aria-label="Eliminar ambiente"
+              >
+                <Trash2 size={13}/>
+              </Button>
+            </div>
+            <Input
+              className="h-8 text-[11px]"
+              value={env.server}
+              placeholder="Servidor / host · ej. apis.grupocepas.com"
+              onChange={(e) => setEnvironments((prev) => prev.map((item, i) => i === index ? { ...item, server: e.target.value } : item))}
+            />
+            <Input
+              className="h-8 text-[11px]"
+              value={env.url ?? ''}
+              placeholder="URL · ej. https://apis.grupocepas.com/Gw.Sap4Hana"
+              onChange={(e) => setEnvironments((prev) => prev.map((item, i) => i === index ? { ...item, url: e.target.value } : item))}
+            />
+            <select
+              className="h-8 w-full rounded-md border border-border bg-background px-2 text-[11px]"
+              value={env.status}
+              onChange={(e) => setEnvironments((prev) => prev.map((item, i) => i === index ? { ...item, status: e.target.value as Environment['status'] } : item))}
+            >
+              <option value="ok">OK</option>
+              <option value="degradado">Degradado</option>
+              <option value="caido">Caído</option>
+            </select>
+          </div>
+        ))}
+      </section>
       <p className="rounded border border-border bg-background p-2 text-[10.5px] text-muted-foreground">ID estable: <code>{node.id}</code>. Estos cambios se guardan localmente en este navegador y actualizan Mapa y Documentación.</p>
     </div>
     <footer className="flex justify-end gap-2 border-t border-border p-3">
