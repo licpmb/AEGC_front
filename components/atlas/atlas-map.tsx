@@ -1031,7 +1031,7 @@ function MapInner() {
 
     setSelectedEdgeId(`eff-${nextEdge.id}`)
     requestAnimationFrame(() => persistLayoutNow())
-  }, [pushUndoSnapshot, persistLayoutNow, allRelations])
+  }, [pushUndoSnapshot, persistLayoutNow])
 
   const deleteRelation = useCallback((edgeId: string) => {
     pushUndoSnapshot()
@@ -1191,7 +1191,7 @@ function MapInner() {
 
     setSelectedEdgeId(oldEdge.id)
     requestAnimationFrame(() => persistLayoutNow())
-  }, [pushUndoSnapshot, persistLayoutNow])
+  }, [pushUndoSnapshot, persistLayoutNow, allRelations])
 
   // Un click selecciona la relación y habilita el cambio manual del punto de
   // origen/destino. Doble click conserva el acceso al catálogo de endpoints.
