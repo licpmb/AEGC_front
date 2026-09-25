@@ -27,7 +27,7 @@ import { EndpointExplorer } from './endpoint-explorer'
 import { MapToolbar, type MapFilters } from './map-toolbar'
 import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
 import { GROUP_META, KIND_META, type AtlasEdge, type AtlasNode } from '@/lib/atlas-types'
-import { useAtlasNodes } from '@/lib/atlas-local'
+import { useAtlasNodes, useImportedEdges } from '@/lib/atlas-local'
 import { NodeEditor } from './node-editor'
 import { RelationEditor } from './relation-editor'
 
@@ -225,6 +225,7 @@ const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v4'
 
 function MapInner() {
   const atlasNodes = useAtlasNodes()
+  const importedEdges = useImportedEdges()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
@@ -291,14 +292,14 @@ function MapInner() {
   }, [])
 
   const allRelations = useMemo<AtlasEdge[]>(() => {
-    const base = ATLAS_EDGES
+    const base = [...ATLAS_EDGES, ...importedEdges.filter((edge) => !ATLAS_EDGES.some((baseEdge) => baseEdge.id === edge.id))]
       .filter((edge) => !deletedEdgeIds.has(edge.id))
       .map((edge) => relationOverrides[edge.id] ?? edge)
     const local = createdEdges
       .filter((edge) => !deletedEdgeIds.has(edge.id))
       .map((edge) => relationOverrides[edge.id] ?? edge)
     return [...base, ...local]
-  }, [createdEdges, relationOverrides, deletedEdgeIds])
+  }, [createdEdges, importedEdges, relationOverrides, deletedEdgeIds])
 
   // Effective edges after applying collapse (remap endpoints, drop internals, dedupe)
   const effectiveEdges = useMemo<EffEdge[]>(() => {
