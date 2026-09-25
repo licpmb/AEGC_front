@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 
 const ICONS: Record<NodeKind, typeof Server> = {
   erp: Server,
+  platform: Layers,
   dispatcher: Shield,
   middleware: Workflow,
   external: Globe,
@@ -72,6 +73,7 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
   if (!node) return null
   const meta = KIND_META[node.kind]
   const Icon = ICONS[node.kind]
+  const isGroup = node.kind === 'platform'
   const isHub = node.kind === 'erp' || node.kind === 'middleware'
   const country = node.country ? COUNTRY_META[node.country] : null
   const environmentBadges = Array.from(
@@ -133,6 +135,51 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
         : openIssues >= 4
           ? { ring: 'var(--chart-1)', glow: '0 0 0 1px var(--chart-1), 0 0 24px -8px var(--chart-1)' }
           : { ring: 'var(--chart-4)', glow: '0 0 0 1px var(--chart-4)' }
+
+  if (isGroup) {
+    return (
+      <>
+        <NodeResizer
+          isVisible={Boolean(selected)}
+          onResizeStart={() => onBeforeResize?.()}
+          onResizeEnd={() => onAfterResize?.()}
+          minWidth={260}
+          minHeight={220}
+          lineClassName="!border-[var(--chart-2)]"
+          handleClassName="!h-2 !w-2 !rounded-sm !border !border-[var(--chart-2)] !bg-background"
+        />
+        <div
+          className={cn(
+            'relative h-full w-full overflow-visible rounded-xl border-2 border-dashed transition-[opacity,border-color] duration-150',
+            dimmed && 'opacity-20 saturate-0',
+          )}
+          style={{
+            background: 'color-mix(in oklab, var(--map-node-plataforma-bg) 42%, transparent)',
+            borderColor: selected || focused ? meta.color : 'color-mix(in oklab, var(--map-node-plataforma-border) 70%, transparent)',
+            boxShadow: selected || focused ? `0 0 0 1px ${meta.color}` : 'none',
+          }}
+        >
+          <div
+            className="absolute left-3 top-3 flex items-center gap-2 rounded-md border px-2.5 py-1.5"
+            style={{
+              background: 'var(--background)',
+              borderColor: 'var(--map-node-plataforma-border)',
+            }}
+          >
+            <Layers size={14} style={{ color: meta.color }} />
+            <div>
+              <p className="text-[12px] font-bold leading-tight" style={{ color: surface.title }}>
+                {node.label}
+              </p>
+              <p className="font-mono text-[9px] uppercase tracking-wider" style={{ color: surface.meta }}>
+                Agrupador lógico · no es un hop
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
