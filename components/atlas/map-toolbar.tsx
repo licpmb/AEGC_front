@@ -1,5 +1,6 @@
 'use client'
 
+import { memo, useEffect, useRef, useState } from 'react'
 import { Search, Maximize2, GitBranch, AlertTriangle, LayoutGrid } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,7 +75,7 @@ const MULTI_TOOLS: Array<{ action: MultiNodeAction; title: string; glyph: Parame
   { action: 'same-size', title: 'Mismo tamaño que el primero', glyph: 'size' },
 ]
 
-export function MapToolbar({
+function MapToolbarComponent({
   filters,
   onChange,
   onFit,
@@ -93,23 +94,51 @@ export function MapToolbar({
   nodeCount: number
   totalCount: number
 }) {
+  // El estado visual del toolbar vive acá: el click pinta primero y recién en el
+  // frame siguiente se propaga el filtro al canvas pesado.
+  const [uiFilters, setUiFilters] = useState(filters)
+  const pendingFrameRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    setUiFilters(filters)
+  }, [filters])
+
+  useEffect(() => {
+    return () => {
+      if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current)
+    }
+  }, [])
+
+  const commitFilters = (next: MapFilters) => {
+    setUiFilters(next)
+    if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current)
+
+    // Dos frames: garantiza que el estado visual del control llegue a pantalla
+    // antes de iniciar el recálculo del mapa.
+    pendingFrameRef.current = requestAnimationFrame(() => {
+      pendingFrameRef.current = requestAnimationFrame(() => {
+        pendingFrameRef.current = null
+        onChange(next)
+      })
+    })
+  }
   const toggleGroup = (g: string) => {
     const all = Object.keys(GROUP_META)
-    const onlyThis = filters.groups.length === 1 && filters.groups[0] === g
-    onChange({ ...filters, groups: onlyThis ? all : [g] })
+    const onlyThis = uiFilters.groups.length === 1 && uiFilters.groups[0] === g
+    commitFilters({ ...uiFilters, groups: onlyThis ? all : [g] })
   }
 
   const toggleCountry = (c: CountryCode) => {
-    const has = filters.countries.includes(c)
+    const has = uiFilters.countries.includes(c)
     onChange({
       ...filters,
-      countries: has ? filters.countries.filter((x) => x !== c) : [...filters.countries, c],
+      countries: has ? uiFilters.countries.filter((x) => x !== c) : [...uiFilters.countries, c],
     })
   }
 
   const toggleEnvironment = (env: Environment['name']) => {
-    const onlyThis = filters.environments.length === 1 && filters.environments[0] === env
-    onChange({ ...filters, environments: onlyThis ? [] : [env] })
+    const onlyThis = uiFilters.environments.length === 1 && uiFilters.environments[0] === env
+    commitFilters({ ...uiFilters, environments: onlyThis ? [] : [env] })
   }
 
   return (
@@ -121,8 +150,8 @@ export function MapToolbar({
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            value={filters.query}
-            onChange={(e) => onChange({ ...filters, query: e.target.value })}
+            value={uiFilters.query}
+            onChange={(e) => commitFilters({ ...uiFilters, query: e.target.value })}
             placeholder="Buscar nodo, owner, repo, stack…"
             className="map-toolbar-surface h-9 w-72 pl-8 text-[13px]"
           />
@@ -132,10 +161,10 @@ export function MapToolbar({
           {DIRECTIONS.map((d) => (
             <button
               key={d.key}
-              onClick={() => onChange({ ...filters, direction: d.key })}
+              onClick={() => commitFilters({ ...uiFilters, direction: d.key })}
               className={cn(
                 'px-3 py-2 font-mono text-[10.5px] uppercase tracking-wider transition-colors',
-                filters.direction === d.key
+                uiFilters.direction === d.key
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
@@ -152,15 +181,15 @@ export function MapToolbar({
           </Label>
           <Switch
             id="show-issues"
-            checked={filters.showIssues}
-            onCheckedChange={(v) => onChange({ ...filters, showIssues: Boolean(v) })}
+            checked={uiFilters.showIssues}
+            onCheckedChange={(v) => commitFilters({ ...uiFilters, showIssues: Boolean(v) })}
           />
         </div>
 
         <Button
-          variant={filters.onlyWithIssues ? 'default' : 'outline'}
+          variant={uiFilters.onlyWithIssues ? 'default' : 'outline'}
           size="sm"
-          onClick={() => onChange({ ...filters, onlyWithIssues: !filters.onlyWithIssues })}
+          onClick={() => commitFilters({ ...uiFilters, onlyWithIssues: !uiFilters.onlyWithIssues })}
           className="map-toolbar-surface h-9 data-[variant=default]:!bg-primary data-[variant=default]:!text-primary-foreground"
         >
           <AlertTriangle size={13} />
@@ -227,7 +256,7 @@ export function MapToolbar({
 
       <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
         {Object.entries(GROUP_META).map(([key, meta]) => {
-          const active = filters.groups.includes(key)
+          const active = uiFilters.groups.includes(key)
           return (
             <button
               key={key}
@@ -254,7 +283,7 @@ export function MapToolbar({
           País
         </span>
         {(Object.keys(COUNTRY_META) as CountryCode[]).map((c) => {
-          const active = filters.countries.includes(c)
+          const active = uiFilters.countries.includes(c)
           return (
             <button
               key={c}
@@ -272,9 +301,9 @@ export function MapToolbar({
             </button>
           )
         })}
-        {filters.countries.length > 0 && (
+        {uiFilters.countries.length > 0 && (
           <button
-            onClick={() => onChange({ ...filters, countries: [] })}
+            onClick={() => commitFilters({ ...uiFilters, countries: [] })}
             className="rounded-full px-2 py-1 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
           >
             Limpiar
@@ -287,7 +316,7 @@ export function MapToolbar({
           Ambiente
         </span>
         {(['Desarrollo', 'QA', 'Producción'] as Environment['name'][]).map((env) => {
-          const active = filters.environments.includes(env)
+          const active = uiFilters.environments.includes(env)
           const short = env === 'Desarrollo' ? 'DEV' : env === 'Producción' ? 'PRD' : 'QAS'
           return (
             <button
@@ -305,9 +334,9 @@ export function MapToolbar({
             </button>
           )
         })}
-        {filters.environments.length > 0 && (
+        {uiFilters.environments.length > 0 && (
           <button
-            onClick={() => onChange({ ...filters, environments: [] })}
+            onClick={() => commitFilters({ ...uiFilters, environments: [] })}
             className="rounded-full px-2 py-1 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
           >
             Todos
@@ -317,3 +346,6 @@ export function MapToolbar({
     </div>
   )
 }
+
+
+export const MapToolbar = memo(MapToolbarComponent)
