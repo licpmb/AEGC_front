@@ -124,11 +124,11 @@ export function MapToolbar({
             value={filters.query}
             onChange={(e) => onChange({ ...filters, query: e.target.value })}
             placeholder="Buscar nodo, owner, repo, stack…"
-            className="map-toolbar-surface h-9 w-72 pl-8 text-[13px] backdrop-blur-sm"
+            className="map-toolbar-surface h-9 w-72 pl-8 text-[13px]"
           />
         </div>
 
-        <div className="map-toolbar-surface flex overflow-hidden rounded-md border backdrop-blur-sm">
+        <div className="map-toolbar-surface flex overflow-hidden rounded-md border">
           {DIRECTIONS.map((d) => (
             <button
               key={d.key}
@@ -145,7 +145,7 @@ export function MapToolbar({
           ))}
         </div>
 
-        <div className="map-toolbar-surface flex items-center gap-2 rounded-md border px-3 py-1.5 backdrop-blur-sm">
+        <div className="map-toolbar-surface flex items-center gap-2 rounded-md border px-3 py-1.5">
           <GitBranch size={13} className="text-muted-foreground" />
           <Label htmlFor="show-issues" className="cursor-pointer text-[12px]">
             Issues
@@ -161,7 +161,7 @@ export function MapToolbar({
           variant={filters.onlyWithIssues ? 'default' : 'outline'}
           size="sm"
           onClick={() => onChange({ ...filters, onlyWithIssues: !filters.onlyWithIssues })}
-          className="map-toolbar-surface h-9 backdrop-blur-sm data-[variant=default]:!bg-primary data-[variant=default]:!text-primary-foreground"
+          className="map-toolbar-surface h-9 data-[variant=default]:!bg-primary data-[variant=default]:!text-primary-foreground"
         >
           <AlertTriangle size={13} />
           Solo con issues
@@ -169,7 +169,7 @@ export function MapToolbar({
 
         {selectionCount >= 2 && (
           <div
-            className="map-toolbar-surface flex items-center overflow-hidden rounded-md border backdrop-blur-sm"
+            className="map-toolbar-surface flex items-center overflow-hidden rounded-md border"
             aria-label="Alinear y redimensionar selección"
           >
             {MULTI_TOOLS.map((tool, index) => (
@@ -204,7 +204,7 @@ export function MapToolbar({
           onClick={onArrange}
           title="Ordenar en cuadrícula respetando la posición actual"
           aria-label="Ordenar en cuadrícula"
-          className="map-toolbar-surface h-9 w-9 backdrop-blur-sm"
+          className="map-toolbar-surface h-9 w-9"
         >
           <LayoutGrid size={15} />
         </Button>
@@ -215,12 +215,12 @@ export function MapToolbar({
           onClick={onFit}
           title="Encuadrar todo el mapa"
           aria-label="Encuadrar todo el mapa"
-          className="map-toolbar-surface h-9 w-9 backdrop-blur-sm"
+          className="map-toolbar-surface h-9 w-9"
         >
           <Maximize2 size={15} />
         </Button>
 
-        <span className="map-toolbar-surface ml-auto rounded-md border px-2.5 py-2 font-mono text-[10.5px] text-muted-foreground backdrop-blur-sm">
+        <span className="map-toolbar-surface ml-auto rounded-md border px-2.5 py-2 font-mono text-[10.5px] text-muted-foreground">
           {nodeCount}/{totalCount} nodos
         </span>
       </div>
@@ -233,7 +233,7 @@ export function MapToolbar({
               key={key}
               onClick={() => toggleGroup(key)}
               className={cn(
-                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
+                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
                 active
                   ? 'map-toolbar-surface border'
                   : 'map-toolbar-surface border opacity-60 text-muted-foreground',
@@ -261,7 +261,7 @@ export function MapToolbar({
               onClick={() => toggleCountry(c)}
               title={COUNTRY_META[c].label}
               className={cn(
-                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
+                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
                 active
                   ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_16%,transparent)]'
                   : 'map-toolbar-surface border text-muted-foreground',
@@ -295,7 +295,7 @@ export function MapToolbar({
               onClick={() => toggleEnvironment(env)}
               title={env}
               className={cn(
-                'rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
+                'rounded-full border px-2.5 py-1 text-[11.5px] transition-colors',
                 active
                   ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_16%,transparent)] font-semibold text-foreground'
                   : 'map-toolbar-surface border text-muted-foreground',
