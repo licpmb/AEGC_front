@@ -129,6 +129,32 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Integración KETAN. CPI contiene dos iFlows confirmados: Órdenes de Producción (SAP → KETAN) y Confirmación de Producción (KETAN → SAP). El mapa consolida ambos sobre el camino SAP ↔ CPI ↔ Api.Ketan ↔ KETAN.',
     x: 820, y: 230,
     tech: ['Gateway', 'SQL Server'],
+    artifacts: [
+      {
+        id: 'ketan-orders-production',
+        name: 'KETAN - Ordenes de Produccion',
+        type: 'Integration Flow',
+        direction: 'SAP S/4HANA → KETAN',
+        trigger: 'SOAP',
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (KETAN)'],
+        deployment: 'not_deployed',
+        runtime: 'unknown',
+        note: 'Entrada SOAP desde SAP. El iFlow usa ProcessDirect para un flujo interno compartido y HTTP para enviar/consultar KETAN.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/KETAN/integrationflows/KETAN_-_Ordenes_de_Produccion',
+      },
+      {
+        id: 'ketan-production-confirmation',
+        name: 'KETAN - Confirmacion de Produccion',
+        type: 'Integration Flow',
+        direction: 'KETAN → SAP S/4HANA',
+        trigger: 'Timer',
+        adapters: ['Timer', 'ProcessDirect (SAP_CPI)', 'HTTP (KETAN)', 'SOAP receiver (SAP_S4H)'],
+        deployment: 'not_deployed',
+        runtime: 'unknown',
+        note: 'La dirección funcional es KETAN → SAP, pero técnicamente CPI inicia por Timer, consulta KETAN por HTTP y envía la confirmación a SAP por SOAP.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/KETAN/integrationflows/KETAN-Confirmacion_Produccion',
+      },
+    ],
   },
   {
     id: 'cdl',
@@ -139,6 +165,54 @@ export const ATLAS_NODES: AtlasNode[] = [
     owner: 'Operaciones / Integraciones',
     description: 'Consumo en Línea. CPI contiene iFlows confirmados de Órdenes de Producción (incluye Items y Orden Línea) desde SAP y Confirmación de Producción hacia SAP. El mapa consolida el camino SAP ↔ CPI ↔ Api.ConsumoLinea ↔ SCL.',
     x: 820, y: 320,
+    artifacts: [
+      {
+        id: 'scl-orders-production',
+        name: 'Sistema de Consumo en Linea - Ordenes de Produccion',
+        type: 'Integration Flow',
+        direction: 'SAP S/4HANA → SCL',
+        trigger: 'SOAP',
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (SCL)'],
+        deployment: 'deployed',
+        runtime: 'started',
+        note: 'Entrada SOAP desde SAP; ProcessDirect interno; salida HTTP hacia SCL.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/SistemaDeConsumoEnLinea/integrationflows/Sistema_Consumo_Linea_-_Ordenes_de_Produccion',
+      },
+      {
+        id: 'scl-orders-production-items',
+        name: 'Sistema de Consumo en Linea - Ordenes de Produccion - Items',
+        type: 'Integration Flow',
+        direction: 'SAP S/4HANA → SCL',
+        trigger: 'SOAP',
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (SCL)'],
+        deployment: 'deployed',
+        runtime: 'started',
+        note: 'Mismo patrón técnico del iFlow principal de órdenes; URL exacta no registrada porque quedó truncada en la evidencia.',
+      },
+      {
+        id: 'scl-orders-production-line',
+        name: 'Sistema de Consumo en Linea - Ordenes de Produccion - Orden Linea',
+        type: 'Integration Flow',
+        direction: 'SAP S/4HANA → SCL',
+        trigger: 'SOAP',
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (SCL)'],
+        deployment: 'deployed',
+        runtime: 'started',
+        note: 'Mismo patrón técnico del iFlow principal de órdenes; URL exacta no registrada porque quedó truncada en la evidencia.',
+      },
+      {
+        id: 'scl-production-confirmation',
+        name: 'Sistema de Consumo en Linea - Confirmacion de Produccion',
+        type: 'Integration Flow',
+        direction: 'SCL → SAP S/4HANA',
+        trigger: 'Timer',
+        adapters: ['Timer', 'ProcessDirect (SAP_CPI)', 'HTTP (SCL)', 'SOAP receiver (SAP_S4H)'],
+        deployment: 'not_deployed',
+        runtime: 'unknown',
+        note: 'La dirección funcional es SCL → SAP; técnicamente CPI inicia por Timer, consulta SCL por HTTP y envía a SAP por SOAP.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/SistemaDeConsumoEnLinea/integrationflows/SCL-ConfirmationDeProduccion',
+      },
+    ],
   },
   {
     id: 'caolix',
@@ -158,9 +232,35 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
-    description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Además existe un paquete CPI con dos iFlows: Obtener Actualizaciones de Empleados y Notificación de Actualización de Empleado. Se mantiene separado del proceso batch SAP hasta confirmar el detalle de adapters.',
+    description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Además existe un paquete CPI con dos iFlows: Obtener Actualizaciones de Empleados y Notificación de Actualización de Empleado.',
     x: 820, y: 500,
     country: 'AR',
+    artifacts: [
+      {
+        id: 'dmp-get-employee-updates',
+        name: 'DMP - Obtener Actualizaciones de Empleados',
+        type: 'Integration Flow',
+        direction: 'DMP → SAP S/4HANA',
+        trigger: 'Timer',
+        adapters: ['Timer', 'ProcessDirect (SAP_CPI)', 'HTTP (DMP)', 'SOAP receiver (SAP_S4H)'],
+        deployment: 'deployed',
+        runtime: 'started',
+        note: 'CPI inicia por Timer, obtiene datos desde DMP por HTTP, transforma y envía a SAP por SOAP.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/DatosMaestrosPersonal/integrationflows/DMP-Obtener_Actualizaciones_Empleados',
+      },
+      {
+        id: 'dmp-employee-update-notification',
+        name: 'DMP - Notificacion de Actualizacion de Empleado',
+        type: 'Integration Flow',
+        direction: 'SAP S/4HANA → DMP',
+        trigger: 'SOAP',
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (DMP)'],
+        deployment: 'deployed',
+        runtime: 'started',
+        note: 'SAP inicia por SOAP; CPI mapea y notifica a DMP por HTTP.',
+        referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/DatosMaestrosPersonal/integrationflows/DMP_-_Notificacion_de_Actualizacion_de_Empleado',
+      },
+    ],
   },
   {
     id: 'dmp-front',
@@ -590,7 +690,7 @@ export const ATLAS_NODES: AtlasNode[] = [
 ]
 
 export const ATLAS_EDGES: AtlasEdge[] = [
-  { id: 'sap-cpi', source: 'sap-s4', target: 'cpi', label: 'Cloud Integration · múltiples iFlows', direction: 'bidireccional', protocol: 'Por definir', health: 'ok' },
+  { id: 'sap-cpi', source: 'sap-s4', target: 'cpi', label: 'iFlows SAP ↔ CPI · SOAP confirmado en KETAN/SCL/DMP', direction: 'bidireccional', protocol: 'SOAP', health: 'ok' },
   { id: 'sap-webdispatcher', source: 'sap-s4', target: 'web-dispatcher', label: 'HTTP(S)', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'sap-odp', source: 'sap-s4', target: 'sap-toolkit', label: 'ODP · extracción/replicación', direction: 'extraccion', protocol: 'CDC', health: 'ok' },
   { id: 'sap-server', source: 'sap-s4', target: 'server-interfaces', label: 'archivos / jobs', direction: 'bidireccional', protocol: 'Batch', health: 'ok' },
@@ -607,11 +707,11 @@ export const ATLAS_EDGES: AtlasEdge[] = [
 
   // KETAN: 2 iFlows confirmados en CPI.
   // SAP → CPI → Api.Ketan → KETAN (Órdenes) y la confirmación recorre el camino inverso.
-  { id: 'cpi-api-ketan', source: 'cpi', target: 'api-ketan', label: '2 iFlows · Órdenes / Confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'cpi-api-ketan', source: 'cpi', target: 'api-ketan', label: '2 iFlows · HTTP hacia/desde KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan', label: 'API Cepas KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
   // Consumo en Línea: 3 iFlows SAP→SCL + 1 iFlow SCL→SAP.
-  { id: 'cpi-api-cdl', source: 'cpi', target: 'api-consumo-linea', label: '4 iFlows · Órdenes / Confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'cpi-api-cdl', source: 'cpi', target: 'api-consumo-linea', label: '4 iFlows · HTTP hacia/desde SCL', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'api-cdl-cdl', source: 'api-consumo-linea', target: 'cdl', label: 'API Cepas Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
   // CAOLIX: 6 iFlows (rendición + confirmación por AR/CL/UY) y un Value Mapping en el package.
