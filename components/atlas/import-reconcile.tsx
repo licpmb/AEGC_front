@@ -160,6 +160,46 @@ export function ImportReconcile() {
     setActions(seed)
   }
 
+  function applyMutations(items: TechnicalReconcileResult['items']) {
+    let nodesAdded = 0
+    let relationsAdded = 0
+    let enriched = 0
+
+    for (const item of items) {
+      for (const mutation of item.mutations ?? []) {
+        if (mutation.kind === 'patch-node') {
+          saveAtlasNodeOverride(mutation.nodeId, mutation.patch)
+          enriched += 1
+        } else if (mutation.kind === 'upsert-node') {
+          upsertImportedNode(mutation.node)
+          nodesAdded += 1
+        } else if (mutation.kind === 'upsert-edge') {
+          upsertImportedEdge(mutation.edge)
+          relationsAdded += 1
+        }
+      }
+    }
+
+    return { nodes: nodesAdded, relations: relationsAdded, enriched }
+  }
+
+  function autoApplyPostman(result: TechnicalReconcileResult) {
+    if (result.source !== 'postman') return null
+
+    // Postman aporta contratos y topología observables. Aplicamos automáticamente
+    // sólo hallazgos de alta confianza; lo ambiguo sigue requiriendo revisión humana.
+    const safeItems = result.items.filter((item) =>
+      item.status !== 'ambiguo' &&
+      item.status !== 'falta_en_fuente' &&
+      item.status !== 'sin_cambios' &&
+      (item.confidence ?? 0) >= 0.95 &&
+      (item.mutations?.length ?? 0) > 0
+    )
+
+    if (!safeItems.length) return null
+    return applyMutations(safeItems)
+  }
+
   function startScan(src: ImportSource) {
     const staticResult = RECONCILE_RESULTS[src]
     if (!staticResult) return
@@ -191,6 +231,7 @@ export function ImportReconcile() {
     const allItems: TechnicalReconcileResult['items'] = []
     let totalSecrets = 0
     const processedNames: string[] = []
+    let autoSummary = { nodes: 0, relations: 0, enriched: 0 }
     let firstSource: 'appsettings' | 'postman' = supported[0].source as 'appsettings' | 'postman'
 
     for (let i = 0; i < detected.length; i += 1) {
@@ -202,6 +243,14 @@ export function ImportReconcile() {
         ? parseAppSettings(text, file.name, atlasNodes)
         : parsePostman(text, file.name, atlasNodes)
       allItems.push(...parsed.items.map((item) => ({ ...item, id: `${slugFile(file.name)}-${item.id}` })))
+      const applied = autoApplyPostman(parsed)
+      if (applied) {
+        autoSummary = {
+          nodes: autoSummary.nodes + applied.nodes,
+          relations: autoSummary.relations + applied.relations,
+          enriched: autoSummary.enriched + applied.enriched,
+        }
+      }
       totalSecrets += parsed.secretsDetected
       processedNames.push(file.name)
     }
@@ -217,6 +266,22 @@ export function ImportReconcile() {
     setSource(firstSource)
     setLiveResult(combined)
     seedActions(combined.items)
+    if (autoSummary.nodes || autoSummary.relations || autoSummary.enriched) {
+      setApplySummary(autoSummary)
+      setActions((prev) => {
+        const next = { ...prev }
+        for (const item of combined.items) {
+          if (
+            item.status !== 'ambiguo' &&
+            item.status !== 'falta_en_fuente' &&
+            item.status !== 'sin_cambios' &&
+            (item.confidence ?? 0) >= 0.95 &&
+            (item.mutations?.length ?? 0) > 0
+          ) next[item.id] = 'omitir'
+        }
+        return next
+      })
+    }
     setScanned(true)
   }
 
@@ -237,6 +302,23 @@ export function ImportReconcile() {
         : parsePostman(text, file.name, atlasNodes)
       setLiveResult(parsed)
       seedActions(parsed.items)
+      const autoApplied = autoApplyPostman(parsed)
+      if (autoApplied) {
+        setApplySummary(autoApplied)
+        setActions((prev) => {
+          const next = { ...prev }
+          for (const item of parsed.items) {
+            if (
+              item.status !== 'ambiguo' &&
+              item.status !== 'falta_en_fuente' &&
+              item.status !== 'sin_cambios' &&
+              (item.confidence ?? 0) >= 0.95 &&
+              (item.mutations?.length ?? 0) > 0
+            ) next[item.id] = 'omitir'
+          }
+          return next
+        })
+      }
       setScanned(true)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo interpretar el archivo.')
@@ -520,7 +602,7 @@ export function ImportReconcile() {
           {applySummary && (
             <div className="mx-6 mt-4 flex flex-wrap items-center gap-3 rounded-md border border-[color:var(--chart-4)]/35 bg-[color-mix(in_oklab,var(--chart-4)_10%,transparent)] px-3 py-2 text-[12px]">
               <Check size={14} style={{ color: 'var(--chart-4)' }} />
-              <strong>Aplicado al Atlas:</strong>
+              <strong>{liveResult?.source === 'postman' ? 'Actualizado automáticamente en el Atlas:' : 'Aplicado al Atlas:'}</strong>
               <span>{applySummary.nodes} nodo{applySummary.nodes === 1 ? '' : 's'} nuevo{applySummary.nodes === 1 ? '' : 's'}</span>
               <span>{applySummary.relations} relación{applySummary.relations === 1 ? '' : 'es'} nueva{applySummary.relations === 1 ? '' : 's'}</span>
               <span>{applySummary.enriched} nodo{applySummary.enriched === 1 ? '' : 's'} enriquecido{applySummary.enriched === 1 ? '' : 's'}</span>
