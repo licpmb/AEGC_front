@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -257,6 +257,9 @@ function MapInner() {
     showIssues: true,
     onlyWithIssues: false,
   })
+  // El toolbar responde inmediatamente; el canvas procesa el filtro en un render diferido.
+  // Así un click no queda bloqueado esperando el recálculo de React Flow.
+  const mapFilters = useDeferredValue(filters)
   const { fitView } = useReactFlow()
 
   const toggleCollapse = useCallback((id: string) => {
@@ -332,11 +335,11 @@ function MapInner() {
 
   // Which nodes pass the filters (collapse + group + country + direction + query + issues)
   const visibleIds = useMemo(() => {
-    const q = filters.query.trim().toLowerCase()
+    const q = mapFilters.query.trim().toLowerCase()
     const dirNodes = new Set<string>()
-    if (filters.direction !== 'todos') {
+    if (mapFilters.direction !== 'todos') {
       for (const e of effectiveEdges) {
-        if (e.direction === filters.direction || e.direction === 'bidireccional') {
+        if (e.direction === mapFilters.direction || e.direction === 'bidireccional') {
           dirNodes.add(e.source)
           dirNodes.add(e.target)
         }
@@ -346,13 +349,13 @@ function MapInner() {
     const ids = new Set<string>()
     for (const n of atlasNodes) {
       if (representative(n.id, collapsed) !== n.id) continue
-      if (!filters.groups.includes(KIND_META[n.kind].group)) continue
-      if (filters.countries.length > 0 && n.country && !filters.countries.includes(n.country)) continue
+      if (!mapFilters.groups.includes(KIND_META[n.kind].group)) continue
+      if (mapFilters.countries.length > 0 && n.country && !mapFilters.countries.includes(n.country)) continue
 
-      if (filters.environments.length > 0) {
+      if (mapFilters.environments.length > 0) {
         let envMatch = false
         for (const env of n.environments ?? []) {
-          if (filters.environments.includes(env.name)) {
+          if (mapFilters.environments.includes(env.name)) {
             envMatch = true
             break
           }
@@ -361,7 +364,7 @@ function MapInner() {
       }
 
       if (filters.direction !== 'todos' && !dirNodes.has(n.id)) continue
-      if (filters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) continue
+      if (mapFilters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) continue
 
       if (q) {
         const hay = `${n.label} ${n.domain} ${n.owner} ${n.tech?.join(' ') ?? ''} ${n.gitlab?.path ?? ''} ${n.country ?? ''}`
@@ -371,7 +374,7 @@ function MapInner() {
       ids.add(n.id)
     }
     return ids
-  }, [filters, issueStats, collapsed, effectiveEdges, atlasNodes])
+  }, [mapFilters, issueStats, collapsed, effectiveEdges, atlasNodes])
 
   // Neighbourhood of the selected node, for focus highlight
   const focusSet = useMemo(() => {
@@ -873,93 +876,24 @@ function MapInner() {
     [persistLayoutNow],
   )
 
-  // Recompute only the nodes whose effective presentation actually changed.
-  // Returning the previous object for untouched nodes prevents React Flow from
-  // repainting the whole canvas after every toolbar click.
-  useEffect(() => {
-    setNodes((prev) => {
-      let changed = false
-
-      const next = prev.map((rf) => {
-        const node = atlasNodeById.get(rf.id)
-        if (!node) return rf
-
-        const stats = issueStats.get(node.id) ?? { open: 0, blocking: 0 }
-        const hidden = !visibleIds.has(node.id)
-        const inFocus = focusSet ? focusSet.has(node.id) : true
-        const kids = CHILDREN_OF.get(node.id)?.length ?? 0
-        const isCollapsed = collapsed.has(node.id)
-        const data = rf.data as unknown as AtlasFlowNodeData
-
-        const nextHiddenChildren = isCollapsed ? descendantCount(node.id) : 0
-        const unchanged =
-          rf.hidden === hidden &&
-          data.node === node &&
-          data.openIssues === stats.open &&
-          data.blocking === stats.blocking &&
-          data.dimmed === !inFocus &&
-          data.focused === (node.id === selectedId) &&
-          data.showIssues === filters.showIssues &&
-          data.hasChildren === (kids > 0) &&
-          data.collapsed === isCollapsed &&
-          data.hiddenChildren === nextHiddenChildren &&
-          data.onToggleCollapse === toggleCollapse &&
-          data.onBeforeResize === pushUndoSnapshot &&
-          data.onAfterResize === afterResize
-
-        if (unchanged) return rf
-        changed = true
-
-        return {
-          ...rf,
-          hidden,
-          data: {
-            node,
-            openIssues: stats.open,
-            blocking: stats.blocking,
-            dimmed: !inFocus,
-            focused: node.id === selectedId,
-            showIssues: filters.showIssues,
-            hasChildren: kids > 0,
-            collapsed: isCollapsed,
-            hiddenChildren: nextHiddenChildren,
-            onToggleCollapse: toggleCollapse,
-            onBeforeResize: pushUndoSnapshot,
-            onAfterResize: afterResize,
-          } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
-        }
-      })
-
-      return changed ? next : prev
-    })
-  }, [
-    visibleIds,
-    focusSet,
-    selectedId,
-    issueStats,
-    filters.showIssues,
-    collapsed,
-    setNodes,
-    toggleCollapse,
-    pushUndoSnapshot,
-    afterResize,
-    atlasNodeById,
-  ])
+  const stateNodeById = useMemo(
+    () => new Map(nodes.map((node) => [node.id, node])),
+    [nodes],
+  )
 
   useEffect(() => {
-    const nodeById = new Map(nodes.map((node) => [node.id, node]))
     const projected = effectiveEdges
       .filter(
         (e) =>
           visibleIds.has(e.source) &&
           visibleIds.has(e.target) &&
-          (filters.direction === 'todos' ||
-            e.direction === filters.direction ||
+          (mapFilters.direction === 'todos' ||
+            e.direction === mapFilters.direction ||
             e.direction === 'bidireccional'),
       )
       .map((e) => {
-          const sourceNode = nodeById.get(e.source)
-          const targetNode = nodeById.get(e.target)
+          const sourceNode = stateNodeById.get(e.source)
+          const targetNode = stateNodeById.get(e.target)
           const dx = (targetNode?.position.x ?? 0) - (sourceNode?.position.x ?? 0)
           const dy = (targetNode?.position.y ?? 0) - (sourceNode?.position.y ?? 0)
           const horizontal = Math.abs(dx) >= Math.abs(dy)
@@ -1044,7 +978,7 @@ function MapInner() {
       ) return prev
       return projected
     })
-  }, [effectiveEdges, visibleIds, focusSet, filters.direction, edgeHandles, selectedEdgeId, nodes, setEdges])
+  }, [effectiveEdges, visibleIds, focusSet, mapFilters.direction, edgeHandles, selectedEdgeId, stateNodeById, setEdges])
 
   const selected = selectedId ? (atlasNodes.find((n) => n.id === selectedId) ?? null) : null
   const selectedRelation = selectedEdgeId
@@ -1307,17 +1241,59 @@ function MapInner() {
     }
   }, [])
 
-  const flowNodes = useMemo(
-    () => nodes.filter((node) => visibleIds.has(node.id)),
-    [nodes, visibleIds],
-  )
+  const flowNodes = useMemo(() => {
+    const projected: Node[] = []
+    for (const id of visibleIds) {
+      const rf = stateNodeById.get(id)
+      const node = atlasNodeById.get(id)
+      if (!rf || !node) continue
+
+      const stats = issueStats.get(id) ?? { open: 0, blocking: 0 }
+      const inFocus = focusSet ? focusSet.has(id) : true
+      const kids = CHILDREN_OF.get(id)?.length ?? 0
+      const isCollapsed = collapsed.has(id)
+
+      projected.push({
+        ...rf,
+        hidden: false,
+        data: {
+          ...(rf.data ?? {}),
+          node,
+          openIssues: stats.open,
+          blocking: stats.blocking,
+          dimmed: !inFocus,
+          focused: id === selectedId,
+          showIssues: mapFilters.showIssues,
+          hasChildren: kids > 0,
+          collapsed: isCollapsed,
+          hiddenChildren: isCollapsed ? descendantCount(id) : 0,
+          onToggleCollapse: toggleCollapse,
+          onBeforeResize: pushUndoSnapshot,
+          onAfterResize: afterResize,
+        } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
+      })
+    }
+    return projected
+  }, [
+    visibleIds,
+    stateNodeById,
+    atlasNodeById,
+    issueStats,
+    focusSet,
+    collapsed,
+    selectedId,
+    mapFilters.showIssues,
+    toggleCollapse,
+    pushUndoSnapshot,
+    afterResize,
+  ])
 
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
         <MapToolbar
           filters={filters}
-          onChange={(next) => startTransition(() => setFilters(next))}
+          onChange={setFilters}
           onFit={() => {
             setSelectedId(null)
             setSelectedNodeIds([])
