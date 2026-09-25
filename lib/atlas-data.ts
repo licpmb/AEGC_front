@@ -111,7 +111,7 @@ export const ATLAS_NODES: AtlasNode[] = [
   {
     id: 'identity',
     label: 'Identity',
-    kind: 'interface',
+    kind: 'microservice',
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Aplicaciones',
