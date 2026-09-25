@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   Upload,
   Boxes,
@@ -15,6 +15,8 @@ import {
   Settings2,
   Braces,
   ShieldAlert,
+  FileJson,
+  Files,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -64,12 +66,62 @@ function StatusPill({ status }: { status: ReconcileStatus }) {
   )
 }
 
+type DetectedFile = {
+  name: string
+  source: ImportSource | 'desconocido'
+  label: string
+}
+
+async function detectImportSource(file: File): Promise<DetectedFile> {
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.archimate')) return { name: file.name, source: 'archimate', label: 'ArchiMate' }
+  if (/\.ya?ml$/.test(name)) return { name: file.name, source: 'openapi', label: 'OpenAPI / YAML' }
+  if (/\.(docx|pdf|xlsx|vsdx)$/i.test(name)) return { name: file.name, source: 'sharepoint', label: 'Documento' }
+
+  if (name.endsWith('.json')) {
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+      if (String(json?.info?.schema ?? '').includes('getpostman.com') || (Array.isArray(json?.item) && json?.info)) {
+        return { name: file.name, source: 'postman', label: 'Postman Collection' }
+      }
+      if (json?.openapi || json?.swagger) {
+        return { name: file.name, source: 'openapi', label: 'OpenAPI / Swagger' }
+      }
+      if (
+        json?.ConnectionStrings !== undefined ||
+        json?.Logging !== undefined ||
+        json?.Serilog !== undefined ||
+        json?.AllowedHosts !== undefined ||
+        json?.ApiUrls !== undefined ||
+        /appsettings/i.test(file.name)
+      ) {
+        return { name: file.name, source: 'appsettings', label: 'AppSettings' }
+      }
+    } catch {
+      // JSON inválido o no reconocible.
+    }
+  }
+
+  if (/\.xml$/i.test(name)) {
+    const head = (await file.text()).slice(0, 8000).toLowerCase()
+    if (head.includes('archimate') || head.includes('<model')) {
+      return { name: file.name, source: 'archimate', label: 'ArchiMate / XML' }
+    }
+  }
+
+  return { name: file.name, source: 'desconocido', label: 'No identificado' }
+}
+
 export function ImportReconcile() {
   const atlasNodes = useAtlasNodes()
   const [source, setSource] = useState<ImportSource | null>(null)
   const [scanned, setScanned] = useState(false)
   const [liveResult, setLiveResult] = useState<TechnicalReconcileResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const [detectedFiles, setDetectedFiles] = useState<DetectedFile[]>([])
+  const genericInputRef = useRef<HTMLInputElement>(null)
   // acciones elegidas por item: aplicar | omitir
   const [actions, setActions] = useState<Record<string, 'aplicar' | 'omitir'>>({})
 
@@ -114,7 +166,61 @@ export function ImportReconcile() {
     setTimeout(() => setScanned(true), 250)
   }
 
+  async function loadDroppedFiles(files: File[]) {
+    if (!files.length) return
+    setError(null)
+    setScanned(false)
+
+    const detected = await Promise.all(files.map(detectImportSource))
+    setDetectedFiles(detected)
+
+    const supported = detected.filter((d) => d.source === 'appsettings' || d.source === 'postman')
+    if (!supported.length) {
+      const labels = detected.map((d) => `${d.name}: ${d.label}`).join(' · ')
+      setSource(detected[0]?.source === 'desconocido' ? null : detected[0]?.source ?? null)
+      setError(`Identifiqué los archivos, pero este flujo todavía procesa automáticamente AppSettings y Postman. ${labels}`)
+      setScanned(true)
+      return
+    }
+
+    const allItems: TechnicalReconcileResult['items'] = []
+    let totalSecrets = 0
+    const processedNames: string[] = []
+    let firstSource: 'appsettings' | 'postman' = supported[0].source as 'appsettings' | 'postman'
+
+    for (let i = 0; i < detected.length; i += 1) {
+      const detectedFile = detected[i]
+      if (detectedFile.source !== 'appsettings' && detectedFile.source !== 'postman') continue
+      const file = files[i]
+      const text = await file.text()
+      const parsed = detectedFile.source === 'appsettings'
+        ? parseAppSettings(text, file.name, atlasNodes)
+        : parsePostman(text, file.name, atlasNodes)
+      allItems.push(...parsed.items.map((item) => ({ ...item, id: `${slugFile(file.name)}-${item.id}` })))
+      totalSecrets += parsed.secretsDetected
+      processedNames.push(file.name)
+    }
+
+    const combined: TechnicalReconcileResult = {
+      source: firstSource,
+      fileName: processedNames.join(' + '),
+      scannedAt: 'recién',
+      items: allItems,
+      secretsDetected: totalSecrets,
+    }
+
+    setSource(firstSource)
+    setLiveResult(combined)
+    seedActions(combined.items)
+    setScanned(true)
+  }
+
+  function slugFile(name: string) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 36)
+  }
+
   async function loadTechnicalFile(src: 'appsettings' | 'postman', file: File) {
+    setDetectedFiles([{ name: file.name, source: src, label: src === 'appsettings' ? 'AppSettings' : 'Postman Collection' }])
     setSource(src)
     setLiveResult(null)
     setError(null)
@@ -137,6 +243,7 @@ export function ImportReconcile() {
     setSource(null)
     setLiveResult(null)
     setError(null)
+    setDetectedFiles([])
     setScanned(false)
     setActions({})
   }
@@ -184,8 +291,50 @@ export function ImportReconcile() {
       {!source && (
         <div className="grid flex-1 place-items-center p-6">
           <div className="w-full max-w-4xl">
+            <div
+              onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
+              onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+              onDragLeave={(e) => {
+                e.preventDefault()
+                if (e.currentTarget === e.target) setDragging(false)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragging(false)
+                void loadDroppedFiles(Array.from(e.dataTransfer.files))
+              }}
+              onClick={() => genericInputRef.current?.click()}
+              className={cn(
+                'mb-6 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-9 text-center transition-colors',
+                dragging
+                  ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_10%,transparent)]'
+                  : 'border-border bg-card/50 hover:border-[var(--chart-3)]',
+              )}
+            >
+              <input
+                ref={genericInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                accept=".json,.yaml,.yml,.archimate,.xml,.docx,.pdf,.xlsx,.vsdx"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? [])
+                  if (files.length) void loadDroppedFiles(files)
+                  e.currentTarget.value = ''
+                }}
+              />
+              <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
+                <Files size={23} />
+              </span>
+              <p className="text-[15px] font-semibold">Arrastrá y soltá los documentos acá</p>
+              <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
+                AEGC identifica automáticamente si es AppSettings, Postman, OpenAPI, ArchiMate o documentación.
+                También podés hacer clic para elegir uno o varios archivos.
+              </p>
+            </div>
+
             <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Elegí una fuente
+              O elegí el tipo manualmente
             </h3>
             <div className="grid gap-4 md:grid-cols-3">
               {(Object.keys(IMPORT_SOURCE_META) as ImportSource[]).map((src) => {
@@ -248,6 +397,17 @@ export function ImportReconcile() {
               <Upload size={14} className="text-muted-foreground" />
               <span className="font-mono text-[12px]">{result.fileName}</span>
             </span>
+            {detectedFiles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {detectedFiles.map((file) => (
+                  <span key={file.name} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1 text-[10px]">
+                    <FileJson size={10} />
+                    <span className="max-w-40 truncate">{file.name}</span>
+                    <span className="font-semibold text-foreground">· {file.label}</span>
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {ORDER.map((s) =>
                 counts[s] > 0 ? (
