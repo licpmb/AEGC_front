@@ -390,6 +390,51 @@ function MapInner() {
 
   const [nodes, setNodes] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  // Sincroniza altas/importaciones posteriores al montaje.
+  // useNodesState toma initialNodes solo en el primer render; por eso, sin este
+  // merge, los nodos importados existían en storage/Atlas pero no aparecían en el canvas.
+  useEffect(() => {
+    setNodes((prev) => {
+      const current = new Map(prev.map((node) => [node.id, node]))
+      const next = atlasNodes.map((n) => {
+        const existing = current.get(n.id)
+        if (existing) {
+          return {
+            ...existing,
+            data: {
+              ...(existing.data ?? {}),
+              node: n,
+            },
+          }
+        }
+
+        return {
+          id: n.id,
+          type: 'atlas',
+          position: { x: n.x, y: n.y },
+          ...(n.width && n.height ? { style: { width: n.width, height: n.height } } : {}),
+          data: {
+            node: n,
+            openIssues: 0,
+            blocking: 0,
+            dimmed: false,
+            focused: false,
+            showIssues: true,
+          } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
+        } satisfies Node
+      })
+
+      const same =
+        next.length === prev.length &&
+        next.every((node, index) =>
+          node.id === prev[index]?.id &&
+          node.data?.node === prev[index]?.data?.node
+        )
+
+      return same ? prev : next
+    })
+  }, [atlasNodes, setNodes])
   const undoStackRef = useRef<UndoSnapshot[]>([])
   const undoingRef = useRef(false)
   const nodesRef = useRef<Node[]>(nodes)
