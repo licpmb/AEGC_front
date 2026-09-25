@@ -19,6 +19,31 @@ export type TechnicalReconcileResult = Omit<ReconcileResult, 'source' | 'items'>
 
 const SENSITIVE = /(secret|password|passwd|pwd|token|api.?key|client.?secret|authorization|connectionstring)/i
 
+function sanitizeSensitiveValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeSensitiveValue)
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+        key,
+        SENSITIVE.test(key) ? '[REDACTED]' : sanitizeSensitiveValue(child),
+      ]),
+    )
+  }
+  return value
+}
+
+function sanitizeRawBody(raw?: string): string | undefined {
+  if (!raw) return undefined
+  try {
+    return JSON.stringify(sanitizeSensitiveValue(JSON.parse(raw)))
+  } catch {
+    // Fallback conservador para cuerpos que no sean JSON válido.
+    return raw
+      .replace(/("(?:password|passwd|pwd|token|api.?key|client.?secret|authorization)"\s*:\s*)"[^"]*"/gi, '$1"[REDACTED]"')
+      .replace(/((?:password|passwd|pwd|token|api.?key|client.?secret|authorization)\s*[=:]\s*)[^&\s,;]+/gi, '$1[REDACTED]')
+  }
+}
+
 function slug(value: string) {
   return value.toLowerCase().replace(/https?:\/\//g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72)
 }
@@ -268,6 +293,8 @@ export function parsePostman(text: string, fileName: string, nodes: AtlasNode[])
     const req = item.request
     if (!req) continue
     if (req.auth && JSON.stringify(req.auth).match(SENSITIVE)) secrets += 1
+    const requestBodyRaw = rawBody(req)
+    if (requestBodyRaw && SENSITIVE.test(requestBodyRaw)) secrets += 1
     const rawUrl: string = req.url?.raw ?? ''
     const targetId = targetForPostman(item.name ?? '', rawUrl)
     if (!targetId) continue
@@ -276,11 +303,12 @@ export function parsePostman(text: string, fileName: string, nodes: AtlasNode[])
 
     const method = (String(req.method || 'GET').toUpperCase() as HttpMethod)
     const body = rawBody(req)
+    const sanitizedBody = sanitizeRawBody(body)
     const orderType = orderTypeFromBody(body)
     const url = safeUrl(rawUrl)
     const variant: EndpointVariant | undefined = orderType ? {
       orderType,
-      requestBody: body,
+      requestBody: sanitizedBody,
       note: item.name,
     } : undefined
 
