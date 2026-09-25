@@ -127,22 +127,22 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
             ['bottom', Position.Bottom],
             ['left', Position.Left],
           ] as const
-        ).map(([side, pos]) => (
-          <span key={side}>
-            <Handle
-              id={`t-${side}`}
-              type="target"
-              position={pos}
-              className="atlas-handle"
-            />
-            <Handle
-              id={`s-${side}`}
-              type="source"
-              position={pos}
-              className="atlas-handle"
-            />
-          </span>
-        ))}
+        ).flatMap(([side, pos]) => [
+          <Handle
+            key={`t-${side}`}
+            id={`t-${side}`}
+            type="target"
+            position={pos}
+            className="atlas-handle"
+          />,
+          <Handle
+            key={`s-${side}`}
+            id={`s-${side}`}
+            type="source"
+            position={pos}
+            className="atlas-handle"
+          />,
+        ])}
 
         <span
           className="flex shrink-0 items-center justify-center rounded-md"
