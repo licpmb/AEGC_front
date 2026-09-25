@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { GROUP_META, COUNTRY_META, type CountryCode } from '@/lib/atlas-types'
+import { GROUP_META, COUNTRY_META, type CountryCode, type Environment } from '@/lib/atlas-types'
 import { cn } from '@/lib/utils'
 
 export type MapFilters = {
   query: string
   groups: string[]
   countries: CountryCode[]
+  environments: Environment['name'][]
   direction: 'todos' | 'extraccion' | 'inyeccion'
   showIssues: boolean
   onlyWithIssues: boolean
@@ -93,9 +94,9 @@ export function MapToolbar({
   totalCount: number
 }) {
   const toggleGroup = (g: string) => {
-    const has = filters.groups.includes(g)
-    const next = has ? filters.groups.filter((x) => x !== g) : [...filters.groups, g]
-    onChange({ ...filters, groups: next.length ? next : filters.groups })
+    const all = Object.keys(GROUP_META)
+    const onlyThis = filters.groups.length === 1 && filters.groups[0] === g
+    onChange({ ...filters, groups: onlyThis ? all : [g] })
   }
 
   const toggleCountry = (c: CountryCode) => {
@@ -104,6 +105,11 @@ export function MapToolbar({
       ...filters,
       countries: has ? filters.countries.filter((x) => x !== c) : [...filters.countries, c],
     })
+  }
+
+  const toggleEnvironment = (env: Environment['name']) => {
+    const onlyThis = filters.environments.length === 1 && filters.environments[0] === env
+    onChange({ ...filters, environments: onlyThis ? [] : [env] })
   }
 
   return (
@@ -272,6 +278,39 @@ export function MapToolbar({
             className="rounded-full px-2 py-1 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
           >
             Limpiar
+          </button>
+        )}
+
+        <div className="mx-1 h-4 w-px bg-border" />
+
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">
+          Ambiente
+        </span>
+        {(['Desarrollo', 'QA', 'Producción'] as Environment['name'][]).map((env) => {
+          const active = filters.environments.includes(env)
+          const short = env === 'Desarrollo' ? 'DEV' : env === 'Producción' ? 'PRD' : 'QAS'
+          return (
+            <button
+              key={env}
+              onClick={() => toggleEnvironment(env)}
+              title={env}
+              className={cn(
+                'rounded-full border px-2.5 py-1 text-[11.5px] backdrop-blur-sm transition-all',
+                active
+                  ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_16%,transparent)] font-semibold text-foreground'
+                  : 'map-toolbar-surface border text-muted-foreground',
+              )}
+            >
+              {short}
+            </button>
+          )
+        })}
+        {filters.environments.length > 0 && (
+          <button
+            onClick={() => onChange({ ...filters, environments: [] })}
+            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+          >
+            Todos
           </button>
         )}
       </div>
