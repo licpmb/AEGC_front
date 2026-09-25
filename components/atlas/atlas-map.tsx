@@ -342,25 +342,35 @@ function MapInner() {
         }
       }
     }
-    return new Set(
-      atlasNodes.filter((n) => {
-        if (representative(n.id, collapsed) !== n.id) return false // hidden under a collapsed parent
-        if (!filters.groups.includes(KIND_META[n.kind].group)) return false
-        if (filters.countries.length > 0 && n.country && !filters.countries.includes(n.country))
-          return false
-        if (filters.environments.length > 0) {
-          const envs = new Set(n.environments?.map((env) => env.name) ?? [])
-          if (!filters.environments.some((env) => envs.has(env))) return false
+
+    const ids = new Set<string>()
+    for (const n of atlasNodes) {
+      if (representative(n.id, collapsed) !== n.id) continue
+      if (!filters.groups.includes(KIND_META[n.kind].group)) continue
+      if (filters.countries.length > 0 && n.country && !filters.countries.includes(n.country)) continue
+
+      if (filters.environments.length > 0) {
+        let envMatch = false
+        for (const env of n.environments ?? []) {
+          if (filters.environments.includes(env.name)) {
+            envMatch = true
+            break
+          }
         }
-        if (filters.direction !== 'todos' && !dirNodes.has(n.id)) return false
-        if (filters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) return false
-        if (q) {
-          const hay = `${n.label} ${n.domain} ${n.owner} ${n.tech?.join(' ') ?? ''} ${n.gitlab?.path ?? ''} ${n.country ?? ''}`
-          if (!hay.toLowerCase().includes(q)) return false
-        }
-        return true
-      }).map((n) => n.id),
-    )
+        if (!envMatch) continue
+      }
+
+      if (filters.direction !== 'todos' && !dirNodes.has(n.id)) continue
+      if (filters.onlyWithIssues && !(issueStats.get(n.id)?.open ?? 0)) continue
+
+      if (q) {
+        const hay = `${n.label} ${n.domain} ${n.owner} ${n.tech?.join(' ') ?? ''} ${n.gitlab?.path ?? ''} ${n.country ?? ''}`
+        if (!hay.toLowerCase().includes(q)) continue
+      }
+
+      ids.add(n.id)
+    }
+    return ids
   }, [filters, issueStats, collapsed, effectiveEdges, atlasNodes])
 
   // Neighbourhood of the selected node, for focus highlight
@@ -937,19 +947,19 @@ function MapInner() {
   ])
 
   useEffect(() => {
-    setEdges(
-      effectiveEdges
-        .filter(
-          (e) =>
-            visibleIds.has(e.source) &&
-            visibleIds.has(e.target) &&
-            (filters.direction === 'todos' ||
-              e.direction === filters.direction ||
-              e.direction === 'bidireccional'),
-        )
-        .map((e) => {
-          const sourceNode = nodes.find((n) => n.id === e.source)
-          const targetNode = nodes.find((n) => n.id === e.target)
+    const nodeById = new Map(nodes.map((node) => [node.id, node]))
+    const projected = effectiveEdges
+      .filter(
+        (e) =>
+          visibleIds.has(e.source) &&
+          visibleIds.has(e.target) &&
+          (filters.direction === 'todos' ||
+            e.direction === filters.direction ||
+            e.direction === 'bidireccional'),
+      )
+      .map((e) => {
+          const sourceNode = nodeById.get(e.source)
+          const targetNode = nodeById.get(e.target)
           const dx = (targetNode?.position.x ?? 0) - (sourceNode?.position.x ?? 0)
           const dy = (targetNode?.position.y ?? 0) - (sourceNode?.position.y ?? 0)
           const horizontal = Math.abs(dx) >= Math.abs(dy)
@@ -1010,8 +1020,30 @@ function MapInner() {
               color: stroke,
             },
           } satisfies Edge
-        }),
-    )
+        })
+
+    setEdges((prev) => {
+      if (
+        prev.length === projected.length &&
+        prev.every((edge, index) => {
+          const next = projected[index]
+          return (
+            edge.id === next.id &&
+            edge.source === next.source &&
+            edge.target === next.target &&
+            edge.sourceHandle === next.sourceHandle &&
+            edge.targetHandle === next.targetHandle &&
+            edge.selected === next.selected &&
+            edge.label === next.label &&
+            edge.className === next.className &&
+            edge.style?.stroke === next.style?.stroke &&
+            edge.style?.strokeWidth === next.style?.strokeWidth &&
+            edge.style?.opacity === next.style?.opacity
+          )
+        })
+      ) return prev
+      return projected
+    })
   }, [effectiveEdges, visibleIds, focusSet, filters.direction, edgeHandles, selectedEdgeId, nodes, setEdges])
 
   const selected = selectedId ? (atlasNodes.find((n) => n.id === selectedId) ?? null) : null
@@ -1275,6 +1307,11 @@ function MapInner() {
     }
   }, [])
 
+  const flowNodes = useMemo(
+    () => nodes.filter((node) => visibleIds.has(node.id)),
+    [nodes, visibleIds],
+  )
+
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
@@ -1295,7 +1332,7 @@ function MapInner() {
 
         <div className="relative min-h-0 flex-1">
         <ReactFlow
-          nodes={nodes}
+          nodes={flowNodes}
           edges={edges}
           onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
