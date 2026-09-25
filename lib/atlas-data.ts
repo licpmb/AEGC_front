@@ -25,7 +25,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Integración',
     owner: 'Integraciones',
-    description: 'Middleware de integración entre SAP y aplicaciones/interfaces. Conecta Identity, KETAN, CDL, CAOLIX, DMP, ARCA y APIs estándar usadas por GCC.',
+    description: 'SAP Cloud Integration (CPI). Ejecuta iFlows para KETAN, Consumo en Línea, DMP, CAOLIX, Factura Electrónica e Identity. API Management se modela aparte: los APIs estándar de pedidos de GCC están publicados/gobernados allí y no se asume paso por CPI sin evidencia del target del proxy.',
     x: 560, y: 0,
     tech: ['SAP Integration Suite / CPI'],
   },
@@ -126,7 +126,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Operaciones / Integraciones',
-    description: 'Integración KETAN. Interfaces PP-01 KETAN IDA y PP-02 KETAN VUELTA.',
+    description: 'Integración KETAN. CPI contiene dos iFlows confirmados: Órdenes de Producción (SAP → KETAN) y Confirmación de Producción (KETAN → SAP). El mapa consolida ambos sobre el camino SAP ↔ CPI ↔ Api.Ketan ↔ KETAN.',
     x: 820, y: 230,
     tech: ['Gateway', 'SQL Server'],
   },
@@ -137,7 +137,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Operaciones / Integraciones',
-    description: 'Consumo en Línea. Integración conectada a SAP mediante CPI.',
+    description: 'Consumo en Línea. CPI contiene iFlows confirmados de Órdenes de Producción (incluye Items y Orden Línea) desde SAP y Confirmación de Producción hacia SAP. El mapa consolida el camino SAP ↔ CPI ↔ Api.ConsumoLinea ↔ SCL.',
     x: 820, y: 320,
   },
   {
@@ -147,7 +147,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Integración',
     owner: 'Finanzas',
-    description: 'Web externa para rendición de gastos de empleados. Las rendiciones llegan por CPI y se contabilizan en SAP. Código FI-10.',
+    description: 'Web externa para rendición de gastos. En CPI hay iFlows CAOLIX → SAP y SAP → CAOLIX para AR/CL/UY, más el Value Mapping VM_CAOLIX. Código FI-10. API Management publica además un producto CAOLIX con API Business Partner; su uso runtime no se presume sólo por estar desplegado.',
     x: 820, y: 410,
     country: 'AR',
   },
@@ -158,7 +158,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Capital Humano',
-    description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Capital Humano ejecuta luego un programa SAP que incorpora la información.',
+    description: 'Front para actualización de datos personales de empleados. Tiene Front, Gateway, API y SQL. Además existe un paquete CPI con dos iFlows: Obtener Actualizaciones de Empleados y Notificación de Actualización de Empleado. Se mantiene separado del proceso batch SAP hasta confirmar el detalle de adapters.',
     x: 820, y: 500,
     country: 'AR',
   },
@@ -217,7 +217,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Integración',
     owner: 'Fiscal / SAP',
-    description: 'Integración de Factura Electrónica Doméstica y Factura Electrónica de Exportación.',
+    description: 'Integración de Factura Electrónica Doméstica y Exportación. CPI contiene múltiples iFlows de autorización/consulta/CAEA y un iFlow compartido de obtención de token AFIP/ARCA.',
     x: 820, y: 590,
     country: 'AR',
   },
@@ -323,7 +323,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Comercial',
-    description: 'Gestión Comercial Cepas. Código SD-12. La cadena técnica pasa por Gateway y API de Cepas, CPI y luego APIs estándar de SAP.',
+    description: 'Gestión Comercial Cepas. Código SD-12. Evidencia actual: Gateway/API Cepas → SAP API Management → APIs estándar SAP → S/4HANA. No se incluye CPI en esta cadena salvo que se confirme que el target del proxy es un iFlow.',
     x: 1300, y: -90,
     country: 'AR',
   },
@@ -350,7 +350,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Comercial / Integraciones',
-    description: 'API de Cepas utilizada por GCC. Desde aquí la integración continúa hacia CPI.',
+    description: 'API de Cepas utilizada por GCC. La salida hacia SAP continúa por el gateway S/4 y SAP API Management; CPI no se presume en este recorrido.',
     x: 820, y: -90,
     parentId: 'gcc',
     country: 'AR',
@@ -533,7 +533,7 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Integración',
     owner: 'Integraciones / SAP',
-    description: 'Capa de gobierno y exposición de APIs SAP consumidas por integraciones como GCC. El target exacto hacia CPI o S/4 debe validarse por proxy.',
+    description: 'SAP API Management. En Engage se observan productos publicados CEPAS_Pedidos_Venta_SD (9 APIs/proxies de Sales Order y Customer Return) y CAOLIX (API Business Partner). Un Product agrupa APIs; no es un iFlow. Para GCC se modela APIM → API estándar SAP → S/4. Un salto APIM → CPI sólo debe agregarse si el Target Endpoint del proxy lo confirma.',
     x: 560, y: -180,
     tech: ['SAP Integration Suite', 'API Management'],
   },
@@ -590,7 +590,7 @@ export const ATLAS_NODES: AtlasNode[] = [
 ]
 
 export const ATLAS_EDGES: AtlasEdge[] = [
-  { id: 'sap-cpi', source: 'sap-s4', target: 'cpi', label: 'integración SAP', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
+  { id: 'sap-cpi', source: 'sap-s4', target: 'cpi', label: 'Cloud Integration · múltiples iFlows', direction: 'bidireccional', protocol: 'Por definir', health: 'ok' },
   { id: 'sap-webdispatcher', source: 'sap-s4', target: 'web-dispatcher', label: 'HTTP(S)', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'sap-odp', source: 'sap-s4', target: 'sap-toolkit', label: 'ODP · extracción/replicación', direction: 'extraccion', protocol: 'CDC', health: 'ok' },
   { id: 'sap-server', source: 'sap-s4', target: 'server-interfaces', label: 'archivos / jobs', direction: 'bidireccional', protocol: 'Batch', health: 'ok' },
@@ -601,12 +601,27 @@ export const ATLAS_EDGES: AtlasEdge[] = [
   { id: 'builders-sql', source: 'builders', target: 'sqlserver', label: 'carga SQL', direction: 'extraccion', protocol: 'JDBC', health: 'ok' },
   { id: 'sql-tec', source: 'sqlserver', target: 'tec', label: 'consulta estado camiones', direction: 'extraccion', protocol: 'JDBC', health: 'ok' },
 
-  { id: 'cpi-identity', source: 'cpi', target: 'identity', label: 'integración', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-ketan', source: 'cpi', target: 'ketan', label: 'PP-01 / PP-02', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-cdl', source: 'cpi', target: 'cdl', label: 'Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-caolix', source: 'cpi', target: 'caolix', label: 'FI-10 · rendiciones', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-dmp', source: 'cpi', target: 'dmp', label: 'HCM-05', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-arca', source: 'cpi', target: 'arca', label: 'Factura electrónica', direction: 'bidireccional', protocol: 'SOAP', health: 'ok' },
+  // Cloud Integration: los iFlows son artifacts que viven dentro de CPI; no son APIs estándar SAP.
+  // Las líneas consolidan el camino técnico y el nombre del/los iFlows observados en Integration Suite.
+  { id: 'cpi-identity', source: 'cpi', target: 'identity', label: 'iFlow · Obtención de Token', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+
+  // KETAN: 2 iFlows confirmados en CPI.
+  // SAP → CPI → Api.Ketan → KETAN (Órdenes) y la confirmación recorre el camino inverso.
+  { id: 'cpi-api-ketan', source: 'cpi', target: 'api-ketan', label: '2 iFlows · Órdenes / Confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan', label: 'API Cepas KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+
+  // Consumo en Línea: 3 iFlows SAP→SCL + 1 iFlow SCL→SAP.
+  { id: 'cpi-api-cdl', source: 'cpi', target: 'api-consumo-linea', label: '4 iFlows · Órdenes / Confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'api-cdl-cdl', source: 'api-consumo-linea', target: 'cdl', label: 'API Cepas Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+
+  // CAOLIX: 6 iFlows (rendición + confirmación por AR/CL/UY) y un Value Mapping en el package.
+  { id: 'cpi-caolix', source: 'cpi', target: 'caolix', label: '6 iFlows · rendición / confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+
+  // DMP: el package CPI tiene 2 iFlows; se conserva además el flujo Front→GW→API→SQL→SAP ya conocido.
+  { id: 'cpi-dmp', source: 'cpi', target: 'dmp', label: '2 iFlows · actualizaciones / notificación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+
+  // Factura electrónica: múltiples iFlows domésticos/exportación + token compartido.
+  { id: 'cpi-arca', source: 'cpi', target: 'arca', label: 'iFlows FE Doméstica / Expo / Token', direction: 'bidireccional', protocol: 'SOAP', health: 'ok' },
 
   { id: 'web-ebuy', source: 'web-dispatcher', target: 'ebuyplace', label: 'FI-01 / MM-04', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
@@ -623,6 +638,9 @@ export const ATLAS_EDGES: AtlasEdge[] = [
   { id: 'dmp-gw-api', source: 'dmp-gw', target: 'dmp-api', label: 'gateway → api', direction: 'inyeccion', protocol: 'REST', health: 'ok' },
   { id: 'dmp-api-sql', source: 'dmp-api', target: 'dmp-sql', label: 'persistencia', direction: 'inyeccion', protocol: 'JDBC', health: 'ok' },
   { id: 'dmp-sap', source: 'dmp-sql', target: 'sap-s4', label: 'programa SAP incorpora datos', direction: 'inyeccion', protocol: 'Batch', health: 'ok' },
+
+  { id: 'gcc-gw-smartpanel', source: 'gcc', target: 'gw-gcc-smartpanel', label: 'GCC → Gateway', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'gw-smartpanel-orders', source: 'gw-gcc-smartpanel', target: 'api-orders-v2', label: 'Gateway → Orders API', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
   // Camino técnico Orders → SAP. La respuesta vuelve por la misma cadena.
   // CPI queda fuera de este recorrido hasta confirmar que el target del proxy de
