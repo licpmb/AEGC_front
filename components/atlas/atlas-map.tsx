@@ -909,6 +909,9 @@ function MapInner() {
               strokeDasharray: e.aggregated ? '2 3' : undefined,
               opacity: focusSet ? (inFocus ? 1 : 0.10) : e.health === 'ok' ? 0.42 : 0.72,
             },
+            interactionWidth: 32,
+            selectable: true,
+            focusable: true,
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 14,
@@ -1147,7 +1150,9 @@ function MapInner() {
       ids[ids.length - 1]
 
     setSelectedId((prev) => prev === nextSelectedId ? prev : nextSelectedId)
-    setSelectedEdgeId((prev) => prev === null ? prev : null)
+    if (ids.length > 0) {
+      setSelectedEdgeId(null)
+    }
   }, [])
 
   return (
@@ -1194,6 +1199,7 @@ function MapInner() {
           onEdgeDoubleClick={handleEdgeDoubleClick}
           onConnect={onConnect}
           onReconnect={onReconnect}
+          deleteKeyCode={null}
           edgesReconnectable
           reconnectRadius={24}
           selectionOnDrag
