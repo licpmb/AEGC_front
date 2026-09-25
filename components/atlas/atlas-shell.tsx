@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Map as MapIcon,
-  Database,
   LogOut,
   AlertTriangle,
   ShieldCheck,
@@ -14,7 +13,6 @@ import {
   Moon,
 } from 'lucide-react'
 import { AtlasMap } from './atlas-map'
-import { DataEntry } from './data-entry'
 import { RolesAdmin } from './roles-admin'
 import { DocCoverage } from './doc-coverage'
 import { ImportReconcile } from './import-reconcile'
@@ -30,7 +28,6 @@ const VIEWS = [
   { key: 'archi', label: 'Modelo Archi', icon: Network },
   { key: 'documentacion', label: 'Documentación', icon: FileText },
   { key: 'importar', label: 'Importar', icon: DownloadCloud },
-  { key: 'datos', label: 'Cargar datos', icon: Database },
   { key: 'roles', label: 'Roles y accesos', icon: ShieldCheck },
 ] as const
 
@@ -165,7 +162,6 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
         {view === 'archi' && <NativeArchiWorkspace initialModel={native?.model} initialXml={native?.xml} onModelLoaded={acceptModel} />}
         {view === 'documentacion' && <DocCoverage />}
         {view === 'importar' && <ImportReconcile />}
-        {view === 'datos' && <DataEntry />}
         {view === 'roles' && <RolesAdmin />}
       </div>
     </div>
