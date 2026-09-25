@@ -853,18 +853,56 @@ function MapInner() {
     if (selectedId && !visibleIds.has(selectedId)) setSelectedId(null)
   }, [visibleIds, selectedId])
 
-  // Recompute node data on filter / selection / collapse / orientation change
+  const atlasNodeById = useMemo(
+    () => new Map(atlasNodes.map((node) => [node.id, node])),
+    [atlasNodes],
+  )
+
+  const afterResize = useCallback(
+    () => requestAnimationFrame(() => persistLayoutNow()),
+    [persistLayoutNow],
+  )
+
+  // Recompute only the nodes whose effective presentation actually changed.
+  // Returning the previous object for untouched nodes prevents React Flow from
+  // repainting the whole canvas after every toolbar click.
   useEffect(() => {
-    setNodes((prev) =>
-      prev.map((rf) => {
-        const node = atlasNodes.find((n) => n.id === rf.id) as AtlasNode
+    setNodes((prev) => {
+      let changed = false
+
+      const next = prev.map((rf) => {
+        const node = atlasNodeById.get(rf.id)
+        if (!node) return rf
+
         const stats = issueStats.get(node.id) ?? { open: 0, blocking: 0 }
-        const visible = visibleIds.has(node.id)
+        const hidden = !visibleIds.has(node.id)
         const inFocus = focusSet ? focusSet.has(node.id) : true
         const kids = CHILDREN_OF.get(node.id)?.length ?? 0
+        const isCollapsed = collapsed.has(node.id)
+        const data = rf.data as unknown as AtlasFlowNodeData
+
+        const nextHiddenChildren = isCollapsed ? descendantCount(node.id) : 0
+        const unchanged =
+          rf.hidden === hidden &&
+          data.node === node &&
+          data.openIssues === stats.open &&
+          data.blocking === stats.blocking &&
+          data.dimmed === !inFocus &&
+          data.focused === (node.id === selectedId) &&
+          data.showIssues === filters.showIssues &&
+          data.hasChildren === (kids > 0) &&
+          data.collapsed === isCollapsed &&
+          data.hiddenChildren === nextHiddenChildren &&
+          data.onToggleCollapse === toggleCollapse &&
+          data.onBeforeResize === pushUndoSnapshot &&
+          data.onAfterResize === afterResize
+
+        if (unchanged) return rf
+        changed = true
+
         return {
           ...rf,
-          hidden: !visible,
+          hidden,
           data: {
             node,
             openIssues: stats.open,
@@ -873,15 +911,17 @@ function MapInner() {
             focused: node.id === selectedId,
             showIssues: filters.showIssues,
             hasChildren: kids > 0,
-            collapsed: collapsed.has(node.id),
-            hiddenChildren: collapsed.has(node.id) ? descendantCount(node.id) : 0,
+            collapsed: isCollapsed,
+            hiddenChildren: nextHiddenChildren,
             onToggleCollapse: toggleCollapse,
             onBeforeResize: pushUndoSnapshot,
-            onAfterResize: () => requestAnimationFrame(() => persistLayoutNow()),
+            onAfterResize: afterResize,
           } satisfies AtlasFlowNodeData as unknown as Record<string, unknown>,
         }
-      }),
-    )
+      })
+
+      return changed ? next : prev
+    })
   }, [
     visibleIds,
     focusSet,
@@ -892,8 +932,8 @@ function MapInner() {
     setNodes,
     toggleCollapse,
     pushUndoSnapshot,
-    persistLayoutNow,
-    atlasNodes,
+    afterResize,
+    atlasNodeById,
   ])
 
   useEffect(() => {
@@ -1299,6 +1339,7 @@ function MapInner() {
           }}
           fitView
           fitViewOptions={{ padding: 0.15 }}
+          onlyRenderVisibleElements
           snapToGrid
           snapGrid={[20, 20]}
           minZoom={0.15}
@@ -1372,7 +1413,7 @@ function MapLegend() {
     color: `var(--map-node-${key}-border)`,
   }))
   return (
-    <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col gap-2 rounded-lg border border-border bg-card/85 px-3 py-2.5 backdrop-blur-sm">
+    <div className="pointer-events-none absolute bottom-4 right-4 z-10 flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5">
       <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         Dominios
       </p>
