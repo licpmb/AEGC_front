@@ -291,8 +291,10 @@ export function ImportReconcile() {
       {!source && (
         <div
           className={cn(
-            'relative flex flex-1 items-center justify-center p-6 transition-colors',
-            dragging && 'bg-[color-mix(in_oklab,var(--chart-3)_7%,transparent)]',
+            'relative m-4 flex flex-1 items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-colors',
+            dragging
+              ? 'border-[var(--chart-3)] bg-[color-mix(in_oklab,var(--chart-3)_9%,transparent)]'
+              : 'border-border bg-card/20',
           )}
           onDragEnter={(e) => { e.preventDefault(); setDragging(true) }}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
@@ -336,15 +338,15 @@ export function ImportReconcile() {
             <button
               type="button"
               onClick={() => genericInputRef.current?.click()}
-              className="mb-6 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-card/50 px-6 py-9 text-center transition-colors hover:border-[var(--chart-3)]"
+              className="mb-6 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl px-6 py-6 text-center transition-colors hover:bg-accent/30"
             >
               <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
                 <Files size={23} />
               </span>
-              <p className="text-[15px] font-semibold">Arrastrá y soltá los documentos en cualquier lugar de esta pantalla</p>
+              <p className="text-[15px] font-semibold">Toda esta área acepta archivos</p>
               <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
-                AEGC identifica automáticamente si es AppSettings, Postman, OpenAPI, ArchiMate o documentación.
-                También podés hacer clic acá para elegir uno o varios archivos.
+                Arrastrá y soltá en cualquier punto dentro del borde punteado. AEGC identifica automáticamente
+                AppSettings, Postman, OpenAPI, ArchiMate o documentación. También podés hacer clic acá para elegir archivos.
               </p>
             </button>
 
