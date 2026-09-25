@@ -136,10 +136,10 @@ export const ATLAS_NODES: AtlasNode[] = [
         type: 'Integration Flow',
         direction: 'SAP S/4HANA → KETAN',
         trigger: 'SOAP',
-        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP receiver (KETAN)'],
+        adapters: ['SOAP sender (SAP_S4H)', 'ProcessDirect (SAP_CPI)', 'HTTP POST → Gw.SapS4hana /Sap4Hana/ketan'],
         deployment: 'not_deployed',
         runtime: 'unknown',
-        note: 'Entrada SOAP desde SAP. El iFlow usa ProcessDirect para un flujo interno compartido y HTTP para enviar/consultar KETAN.',
+        note: 'Entrada SOAP desde SAP. El iFlow usa ProcessDirect para un flujo interno compartido y luego hace HTTP POST al Gateway Cepas Gw.SapS4hana, ruta /Sap4Hana/ketan. El receiver está identificado como KETAN y no usa autenticación a nivel de este adapter.',
         referenceUrl: 'https://grupocepas-int-suite-dev.integrationsuite.cfapps.br10.hana.ondemand.com/shell/design/contentpackage/KETAN/integrationflows/KETAN_-_Ordenes_de_Produccion',
       },
       {
@@ -707,8 +707,8 @@ export const ATLAS_EDGES: AtlasEdge[] = [
 
   // KETAN: 2 iFlows confirmados en CPI.
   // SAP → CPI → Api.Ketan → KETAN (Órdenes) y la confirmación recorre el camino inverso.
-  { id: 'cpi-api-ketan', source: 'cpi', target: 'api-ketan', label: '2 iFlows · HTTP hacia/desde KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan', label: 'API Cepas KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'cpi-gw-s4-ketan', source: 'cpi', target: 'gw-sap4hana', label: 'KETAN · iFlow → GW S/4HANA', direction: 'inyeccion', protocol: 'REST', health: 'ok' },
+  { id: 'gw-s4-ketan', source: 'gw-sap4hana', target: 'ketan', label: '/Sap4Hana/ketan · backend final por confirmar', direction: 'inyeccion', protocol: 'REST', health: 'sin_dato' },
 
   // Consumo en Línea: 3 iFlows SAP→SCL + 1 iFlow SCL→SAP.
   { id: 'cpi-api-cdl', source: 'cpi', target: 'api-consumo-linea', label: '4 iFlows · HTTP hacia/desde SCL', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
