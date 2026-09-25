@@ -20,6 +20,7 @@ import {
   GitMerge,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DataEntry } from './data-entry'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ATLAS_NODES } from '@/lib/atlas-data'
 import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlasNodes } from '@/lib/atlas-local'
@@ -116,6 +117,7 @@ async function detectImportSource(file: File): Promise<DetectedFile> {
 
 export function ImportReconcile() {
   const atlasNodes = useAtlasNodes()
+  const [workspace, setWorkspace] = useState<'descubrir' | 'cargar'>('descubrir')
   const [source, setSource] = useState<ImportSource | null>(null)
   const [scanned, setScanned] = useState(false)
   const [liveResult, setLiveResult] = useState<TechnicalReconcileResult | null>(null)
@@ -298,17 +300,15 @@ export function ImportReconcile() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      {/* encabezado */}
+      {/* encabezado unificado */}
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div>
-          <h2 className="text-pretty text-lg font-semibold">Importar y reconciliar</h2>
+          <h2 className="text-pretty text-lg font-semibold">Datos e importación</h2>
           <p className="mt-0.5 max-w-2xl text-pretty text-[13px] leading-relaxed text-muted-foreground">
-            Cada fuente se compara contra el Atlas actual y propone cambios{' '}
-            <span className="text-foreground">sobre lo que ya existe</span>. No se crean duplicados:
-            lo que coincide se corrige, lo nuevo se marca para revisar.
+            Una sola entrada para descubrir arquitectura desde archivos o cargar/editar datos manualmente.
           </p>
         </div>
-        {source && (
+        {workspace === 'descubrir' && source && (
           <Button variant="ghost" size="sm" onClick={reset} className="gap-1.5">
             <RotateCcw size={13} />
             Otra fuente
@@ -316,8 +316,35 @@ export function ImportReconcile() {
         )}
       </div>
 
+      <div className="flex items-center gap-1 border-b border-border px-5">
+        <button
+          onClick={() => setWorkspace('descubrir')}
+          className={cn(
+            'border-b-2 px-3 py-3 text-[13px] font-medium transition-colors',
+            workspace === 'descubrir'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Descubrir / Importar
+        </button>
+        <button
+          onClick={() => setWorkspace('cargar')}
+          className={cn(
+            'border-b-2 px-3 py-3 text-[13px] font-medium transition-colors',
+            workspace === 'cargar'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Cargar / Editar manualmente
+        </button>
+      </div>
+
+      {workspace === 'cargar' && <DataEntry />}
+
       {/* selección de fuente */}
-      {!source && (
+      {workspace === 'descubrir' && !source && (
         <div
           className={cn(
             'relative m-4 flex flex-1 items-center justify-center rounded-2xl border-2 border-dashed p-6 transition-colors',
@@ -435,7 +462,7 @@ export function ImportReconcile() {
       )}
 
       {/* resultado de reconciliación */}
-      {source && result && (
+      {workspace === 'descubrir' && source && result && (
         <div className="flex min-h-0 flex-1 flex-col">
           {/* barra de resumen */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-card/40 px-6 py-3">
