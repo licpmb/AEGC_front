@@ -3,7 +3,7 @@ import type { ReconcileItem, ReconcileResult } from './atlas-reconcile'
 
 export type TechnicalImportSource = 'appsettings' | 'postman'
 
-type ImportableNodePatch = Partial<Pick<AtlasNode, 'label' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'>>
+type ImportableNodePatch = Partial<Pick<AtlasNode, 'label' | 'kind' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'>>
 
 export type ImportMutation =
   | { kind: 'patch-node'; nodeId: string; patch: ImportableNodePatch }
