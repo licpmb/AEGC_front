@@ -136,6 +136,22 @@ export interface Endpoint {
   variants?: EndpointVariant[]
 }
 
+export interface IntegrationArtifact {
+  id: string
+  name: string
+  type: 'Integration Flow' | 'Value Mapping' | 'API' | 'Other'
+  /** sentido funcional de los datos */
+  direction?: string
+  /** disparador del iFlow cuando se conoce */
+  trigger?: 'SOAP' | 'HTTP' | 'Timer' | 'ProcessDirect' | 'Other'
+  /** adapters / canales observados en el diseño */
+  adapters?: string[]
+  deployment?: 'deployed' | 'not_deployed' | 'draft' | 'unknown'
+  runtime?: 'started' | 'stopped' | 'unknown'
+  note?: string
+  referenceUrl?: string
+}
+
 export interface AtlasNode {
   id: string
   label: string
@@ -154,6 +170,8 @@ export interface AtlasNode {
   gitlab?: GitlabProject
   endpoints?: Endpoint[]
   environments?: Environment[]
+  /** artifacts técnicos asociados (p.ej. iFlows de SAP Integration Suite) */
+  artifacts?: IntegrationArtifact[]
   sla?: string
   volume?: string
   /** tamaño manual del nodo en el mapa (px); opcional */
