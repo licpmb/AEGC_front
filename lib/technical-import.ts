@@ -53,13 +53,33 @@ function findNodeByText(nodes: AtlasNode[], text: string) {
   const q = text.toLowerCase()
   const direct = nodes.find(n => q.includes(n.id.toLowerCase()) || q.includes(n.label.toLowerCase()))
   if (direct) return { node: direct, confidence: 0.95 }
+
+  const aliases: Array<{ pattern: RegExp; id: string; confidence: number }> = [
+    { pattern: /gw[._-]?sap(?:s?4)?hana|gws4hana|saps4hana/, id: 'gw-sap4hana', confidence: 0.99 },
+    { pattern: /gw[._-]?gcc[._-]?smartpanel|gcc[._-]?smartpanel/, id: 'gw-gcc-smartpanel', confidence: 0.99 },
+    { pattern: /gw[._-]?mobile[._-]?gc|mobile[._-]?gc/, id: 'gw-mobile-gc', confidence: 0.99 },
+    { pattern: /gw[._-]?web[._-]?empleados|web[._-]?empleados/, id: 'gw-web-empleados', confidence: 0.99 },
+    { pattern: /gw[._-]?webpedidos|web[._-]?pedidos/, id: 'gw-web-pedidos', confidence: 0.98 },
+    { pattern: /gw[._-]?dmp|dmp(?:_dev|_test)?/, id: 'dmp-gw', confidence: 0.98 },
+    { pattern: /api[._-]?consumolinea|consumolinea/, id: 'api-consumo-linea', confidence: 0.98 },
+    { pattern: /api[._-]?employee|cepas[._-]?employee/, id: 'api-employee', confidence: 0.98 },
+    { pattern: /api[._-]?ketan|cepas[._-]?ketan/, id: 'api-ketan', confidence: 0.98 },
+    { pattern: /api[._-]?orders[._-]?v2|orders[._-]?v2/, id: 'api-orders-v2', confidence: 0.98 },
+    { pattern: /api[._-]?productimage|productimage/, id: 'api-product-image', confidence: 0.98 },
+    { pattern: /cepas[._-]?order[._-]?api|cepasorderurl|orderapi/, id: 'cepas-order-api', confidence: 0.96 },
+    { pattern: /identityurl|cepasidentity/, id: 'identity', confidence: 0.98 },
+    { pattern: /api[._-]?gvd|\bgvd\b/, id: 'api-gvd', confidence: 0.95 },
+  ]
+
+  for (const alias of aliases) {
+    if (!alias.pattern.test(q)) continue
+    const n = nodes.find(node => node.id === alias.id)
+    if (n) return { node: n, confidence: alias.confidence }
+  }
+
   if (/sap.*s4|s4hana|sapqas/.test(q)) {
     const n = nodes.find(n => n.id === 'sap-s4')
     if (n) return { node: n, confidence: 0.9 }
-  }
-  if (/gw\.saps4hana|gwsap4hana/.test(q)) {
-    const n = nodes.find(n => n.kind === 'gateway' && /gcc|sap/i.test(n.label))
-    if (n) return { node: n, confidence: 0.72 }
   }
   return null
 }
