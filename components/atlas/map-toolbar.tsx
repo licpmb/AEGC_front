@@ -113,7 +113,7 @@ export function MapToolbar({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2.5 p-4">
+    <div className="relative z-10 flex shrink-0 flex-col gap-2.5 border-b border-border bg-background/95 p-4">
       <div className="pointer-events-auto flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search
