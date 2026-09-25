@@ -12,10 +12,15 @@ import {
   Sparkles,
   Link2,
   RotateCcw,
+  Settings2,
+  Braces,
+  ShieldAlert,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ATLAS_NODES } from '@/lib/atlas-data'
+import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlasNodes } from '@/lib/atlas-local'
+import { parseAppSettings, parsePostman, type TechnicalReconcileResult } from '@/lib/technical-import'
 import {
   IMPORT_SOURCE_META,
   RECONCILE_META,
@@ -30,6 +35,8 @@ const SOURCE_ICON: Record<ImportSource, typeof Boxes> = {
   archimate: Boxes,
   openapi: Code2,
   sharepoint: FileText,
+  appsettings: Settings2,
+  postman: Braces,
 }
 
 const ORDER: ReconcileStatus[] = [
@@ -58,12 +65,15 @@ function StatusPill({ status }: { status: ReconcileStatus }) {
 }
 
 export function ImportReconcile() {
+  const atlasNodes = useAtlasNodes()
   const [source, setSource] = useState<ImportSource | null>(null)
   const [scanned, setScanned] = useState(false)
+  const [liveResult, setLiveResult] = useState<TechnicalReconcileResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
   // acciones elegidas por item: aplicar | omitir
   const [actions, setActions] = useState<Record<string, 'aplicar' | 'omitir'>>({})
 
-  const result = source ? RECONCILE_RESULTS[source] : null
+  const result = liveResult ?? (source ? RECONCILE_RESULTS[source] ?? null : null)
 
   const counts = useMemo(() => {
     const c: Record<ReconcileStatus, number> = {
@@ -85,25 +95,70 @@ export function ImportReconcile() {
     [result],
   )
 
-  function startScan(src: ImportSource) {
-    setSource(src)
-    setScanned(false)
+  function seedActions(items: ReconcileItem[]) {
     const seed: Record<string, 'aplicar' | 'omitir'> = {}
-    RECONCILE_RESULTS[src].items.forEach((i) => {
+    items.forEach((i) => {
       seed[i.id] = i.defaultAction === 'aplicar' ? 'aplicar' : 'omitir'
     })
     setActions(seed)
-    // simula el escaneo
-    setTimeout(() => setScanned(true), 550)
+  }
+
+  function startScan(src: ImportSource) {
+    const staticResult = RECONCILE_RESULTS[src]
+    if (!staticResult) return
+    setSource(src)
+    setLiveResult(null)
+    setError(null)
+    setScanned(false)
+    seedActions(staticResult.items)
+    setTimeout(() => setScanned(true), 250)
+  }
+
+  async function loadTechnicalFile(src: 'appsettings' | 'postman', file: File) {
+    setSource(src)
+    setLiveResult(null)
+    setError(null)
+    setScanned(false)
+    try {
+      const text = await file.text()
+      const parsed = src === 'appsettings'
+        ? parseAppSettings(text, file.name, atlasNodes)
+        : parsePostman(text, file.name, atlasNodes)
+      setLiveResult(parsed)
+      seedActions(parsed.items)
+      setScanned(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo interpretar el archivo.')
+      setScanned(true)
+    }
   }
 
   function reset() {
     setSource(null)
+    setLiveResult(null)
+    setError(null)
     setScanned(false)
     setActions({})
   }
 
   const toApply = Object.values(actions).filter((a) => a === 'aplicar').length
+
+  function applySelected() {
+    if (!liveResult) return
+    for (const item of liveResult.items) {
+      if (actions[item.id] !== 'aplicar') continue
+      for (const mutation of item.mutations ?? []) {
+        if (mutation.kind === 'patch-node') {
+          saveAtlasNodeOverride(mutation.nodeId, mutation.patch)
+        } else if (mutation.kind === 'upsert-node') {
+          upsertImportedNode(mutation.node)
+        } else if (mutation.kind === 'upsert-edge') {
+          upsertImportedEdge(mutation.edge)
+        }
+      }
+    }
+    setActions((prev) => Object.fromEntries(Object.keys(prev).map((id) => [id, 'omitir'])))
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -137,10 +192,15 @@ export function ImportReconcile() {
                 const meta = IMPORT_SOURCE_META[src]
                 const Icon = SOURCE_ICON[src]
                 return (
-                  <button
+                  <label
                     key={src}
-                    onClick={() => startScan(src)}
-                    className="group flex flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-[color:var(--chart-3)]"
+                    className="group flex cursor-pointer flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-[color:var(--chart-3)]"
+                    onClick={(e) => {
+                      if (src !== 'appsettings' && src !== 'postman') {
+                        e.preventDefault()
+                        startScan(src)
+                      }
+                    }}
                   >
                     <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
                       <Icon size={20} />
@@ -155,7 +215,19 @@ export function ImportReconcile() {
                       <Upload size={11} />
                       {meta.accept}
                     </span>
-                  </button>
+                    {(src === 'appsettings' || src === 'postman') && (
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".json,application/json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) void loadTechnicalFile(src, file)
+                          e.currentTarget.value = ''
+                        }}
+                      />
+                    )}
+                  </label>
                 )
               })}
             </div>
@@ -194,12 +266,25 @@ export function ImportReconcile() {
               <span className="text-[12px] text-muted-foreground">
                 {toApply} de {result.items.length} para aplicar
               </span>
-              <Button size="sm" className="gap-1.5" disabled={toApply === 0}>
+              <Button size="sm" className="gap-1.5" disabled={toApply === 0 || !liveResult} onClick={applySelected}>
                 <Check size={14} />
                 Aplicar al Atlas
               </Button>
             </div>
           </div>
+
+          {liveResult?.secretsDetected ? (
+            <div className="mx-6 mt-4 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px]">
+              <ShieldAlert size={14} className="mt-0.5 shrink-0 text-amber-600" />
+              <span>Se detectaron {liveResult.secretsDetected} credenciales/secretos potenciales. <strong>No se muestran ni se incorporan al Atlas.</strong></span>
+            </div>
+          ) : null}
+
+          {error && (
+            <div className="mx-6 mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[12px] text-destructive">
+              {error}
+            </div>
+          )}
 
           {!scanned ? (
             <div className="grid flex-1 place-items-center">
