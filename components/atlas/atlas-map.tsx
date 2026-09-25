@@ -1277,7 +1277,7 @@ function MapInner() {
 
   return (
     <div className="flex h-full min-h-0 flex-1">
-      <div className="relative min-w-0 flex-1">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <MapToolbar
           filters={filters}
           onChange={(next) => startTransition(() => setFilters(next))}
@@ -1293,6 +1293,7 @@ function MapInner() {
           totalCount={atlasNodes.length}
         />
 
+        <div className="relative min-h-0 flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -1360,6 +1361,7 @@ function MapInner() {
         </ReactFlow>
 
         <MapLegend />
+        </div>
       </div>
 
       {selected && (
