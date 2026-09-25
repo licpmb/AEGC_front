@@ -153,13 +153,34 @@ export function parseAppSettings(text: string, fileName: string, nodes: AtlasNod
   const emptyConnections = out.filter(x => /connectionstrings?:/i.test(x.path) && !x.value)
   if (emptyConnections.length) items.push({
     id: 'app-empty-db',
-    entity: 'ambiente',
+    entity: 'datastore',
     label: 'ConnectionStrings detectado sin destino resoluble',
     status: 'ambiguo',
-    matchReason: 'La cadena está vacía; no se crea ningún datastore.',
+    matchReason: 'La cadena está vacía; no se puede identificar servidor/base y no se crea ningún datastore.',
     confidence: 0,
     defaultAction: 'omitir',
   })
+
+  const detectedEnvs = Array.from(new Set(
+    urls
+      .map((entry) => environmentFrom(entry.value))
+      .filter((env): env is NonNullable<ReturnType<typeof environmentFrom>> => Boolean(env)),
+  ))
+  if (detectedEnvs.length > 0) {
+    items.unshift({
+      id: 'app-environments',
+      entity: 'ambiente',
+      label: detectedEnvs.length === 1
+        ? `Ambiente detectado: ${detectedEnvs[0]}`
+        : `Ambientes detectados: ${detectedEnvs.join(' / ')}`,
+      status: detectedEnvs.length === 1 ? 'sin_cambios' : 'ambiguo',
+      matchReason: detectedEnvs.length === 1
+        ? 'Inferido a partir de hosts/rutas configuradas en el AppSettings.'
+        : 'El mismo archivo contiene referencias a más de un ambiente; se muestran por relación y no se fuerza un ambiente global.',
+      confidence: detectedEnvs.length === 1 ? 0.9 : 0.6,
+      defaultAction: 'omitir',
+    })
+  }
 
   return { source:'appsettings', fileName, scannedAt:'recién', items, secretsDetected: secrets }
 }
