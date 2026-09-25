@@ -238,6 +238,17 @@
 .react-flow__edge-path {
   stroke-linecap: round;
 }
+.react-flow__edge {
+  cursor: pointer;
+}
+.react-flow__edge-interaction {
+  stroke-width: 32px !important;
+  pointer-events: stroke;
+}
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 2.8px !important;
+  opacity: 1 !important;
+}
 .react-flow__node {
   font-family: var(--font-sans);
 }
