@@ -33,8 +33,25 @@ const VIEWS = [
 
 export function AtlasShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<(typeof VIEWS)[number]['key']>('mapa')
+  const [buildInfo, setBuildInfo] = useState<{
+    deploymentId: string | null
+    commitSha: string | null
+    deploymentUrl: string | null
+    environment: string | null
+  } | null>(null)
   const [native, setNative] = useState<{ model: NativeModel; xml: string } | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/build-info', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((info) => {
+        if (!cancelled && info) setBuildInfo(info)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('aegc:theme') === 'light' ? 'light' : 'dark'
@@ -132,6 +149,20 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
               {theme === 'dark' ? <Sun size={15}/> : <Moon size={15}/>}<span className="hidden xl:inline">{theme === 'dark' ? 'Claro' : 'Oscuro'}</span>
             </Button>
             <span className="rounded border border-amber-500/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300" title="Las otras secciones conservan datos ilustrativos">{native ? 'ARCHI · Modelo local' : 'DEMO · Datos ilustrativos'}</span>
+            {buildInfo && (
+              <span
+                className="hidden rounded border border-border px-2 py-1 font-mono text-[9.5px] text-muted-foreground xl:inline"
+                title={[
+                  buildInfo.deploymentId ? `Deployment: ${buildInfo.deploymentId}` : null,
+                  buildInfo.commitSha ? `Commit: ${buildInfo.commitSha}` : null,
+                  buildInfo.deploymentUrl ? `URL: ${buildInfo.deploymentUrl}` : null,
+                  buildInfo.environment ? `Env: ${buildInfo.environment}` : null,
+                ].filter(Boolean).join('\n')}
+              >
+                DEP {buildInfo.deploymentId ? buildInfo.deploymentId.replace(/^dpl_/, '').slice(0, 8) : 'local'}
+                {buildInfo.commitSha ? ` · ${buildInfo.commitSha.slice(0, 7)}` : ''}
+              </span>
+            )}
             <span className="hidden items-center gap-1.5 text-[12.5px] text-muted-foreground sm:inline-flex">
               <span
                 className="rounded-sm px-1.5 py-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-wide"
