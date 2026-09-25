@@ -29,9 +29,17 @@ function safeUrl(raw: string) {
 
 function environmentFrom(value: string) {
   const s = value.toLowerCase()
+
+  // La semántica específica del servicio/path manda sobre el hostname genérico.
+  // Ej.: apisdev.grupocepas.com/Gw.SapS4hana_test/ es QAS, no DEV.
+  if (/(?:^|[\/_\-.])(qas|qa|test|aeq)(?:$|[\/_\-.])/.test(s)) return 'QA' as const
+  if (/(?:^|[\/_\-.])(prd|prod|production)(?:$|[\/_\-.])/.test(s)) return 'Producción' as const
+  if (/(?:^|[\/_\-.])(dev|labo|development)(?:$|[\/_\-.])/.test(s)) return 'Desarrollo' as const
+
+  // Fallback por hostname/texto cuando no hay un marcador específico.
   if (/(qas|qa|test|aeq)/.test(s)) return 'QA' as const
-  if (/(dev|labo)/.test(s)) return 'Desarrollo' as const
   if (/(prod|prd)/.test(s)) return 'Producción' as const
+  if (/(dev|labo)/.test(s)) return 'Desarrollo' as const
   return undefined
 }
 
