@@ -246,16 +246,26 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <p
-              className={cn(
-                'truncate font-bold leading-tight',
-                isHub ? 'text-[15px]' : 'text-[13px]',
-              )}
-              style={{ color: surface.title }}
-            >
-              {node.label}
-            </p>
+          <p
+            className={cn(
+              'truncate font-bold leading-tight',
+              isHub ? 'text-[15px]' : 'text-[13px]',
+            )}
+            style={{ color: surface.title }}
+          >
+            {node.label}
+          </p>
+          <p
+            className="truncate font-mono text-[10px] font-medium uppercase tracking-wider"
+            style={{ color: surface.meta }}
+          >
+            {meta.label}
+            {node.gitlab ? ' · git' : ''}
+          </p>
+        </div>
+
+        {(country || environmentBadges.length > 0 || node.status !== 'prod') && (
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
             {country && (
               <span
                 title={country.label}
@@ -311,14 +321,7 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
               </span>
             )}
           </div>
-          <p
-            className="truncate font-mono text-[10px] font-medium uppercase tracking-wider"
-            style={{ color: surface.meta }}
-          >
-            {meta.label}
-            {node.gitlab ? ' · git' : ''}
-          </p>
-        </div>
+        )}
 
         {showIssues && openIssues > 0 && (
           <span
