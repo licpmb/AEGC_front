@@ -1,7 +1,7 @@
 import type { DocSourceKind } from './atlas-types'
 
 /** Fuente desde la que se importa/reconcilia. */
-export type ImportSource = 'archimate' | 'openapi' | 'sharepoint'
+export type ImportSource = 'archimate' | 'openapi' | 'sharepoint' | 'appsettings' | 'postman'
 
 /**
  * Estado de reconciliación de cada elemento propuesto por la fuente,
@@ -70,6 +70,16 @@ export const IMPORT_SOURCE_META: Record<
     accept: '.docx, .pdf, .xlsx, .vsdx',
     hint: 'Documentos de proceso. La IA los interpreta para corregir/enriquecer lo existente.',
     docKind: 'sharepoint',
+  },
+  appsettings: {
+    label: 'AppSettings',
+    accept: 'appsettings*.json',
+    hint: 'Descubre URLs, hosts, ambientes, dependencias y posibles datastores sin almacenar secretos.',
+  },
+  postman: {
+    label: 'Postman',
+    accept: '*.postman_collection.json',
+    hint: 'Descubre APIs, operaciones OData/REST, autenticación, ambientes y variantes de negocio.',
   },
 }
 
@@ -293,7 +303,7 @@ const SHAREPOINT_RESULT: ReconcileResult = {
   ],
 }
 
-export const RECONCILE_RESULTS: Record<ImportSource, ReconcileResult> = {
+export const RECONCILE_RESULTS: Partial<Record<ImportSource, ReconcileResult>> = {
   archimate: ARCHIMATE_RESULT,
   openapi: OPENAPI_RESULT,
   sharepoint: SHAREPOINT_RESULT,
