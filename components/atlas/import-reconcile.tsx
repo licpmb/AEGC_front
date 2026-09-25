@@ -128,6 +128,7 @@ export function ImportReconcile() {
   // acciones elegidas por item: aplicar | omitir
   const [actions, setActions] = useState<Record<string, 'aplicar' | 'omitir'>>({})
   const [mappings, setMappings] = useState<Record<string, string>>({})
+  const [applySummary, setApplySummary] = useState<{ nodes: number; relations: number; enriched: number } | null>(null)
 
   const result = liveResult ?? (source ? RECONCILE_RESULTS[source] ?? null : null)
 
@@ -251,6 +252,7 @@ export function ImportReconcile() {
     setScanned(false)
     setActions({})
     setMappings({})
+    setApplySummary(null)
   }
 
   const toApply = Object.values(actions).filter((a) => a === 'aplicar').length
@@ -263,6 +265,10 @@ export function ImportReconcile() {
       catch { return {} as Record<string, string> }
     })()
 
+    let nodesAdded = 0
+    let relationsAdded = 0
+    let enriched = 0
+
     for (const item of liveResult.items) {
       if (actions[item.id] !== 'aplicar') continue
       const mappedNodeId = mappings[item.id]
@@ -274,6 +280,7 @@ export function ImportReconcile() {
       for (const mutation of item.mutations ?? []) {
         if (mutation.kind === 'patch-node') {
           saveAtlasNodeOverride(mappedNodeId ?? mutation.nodeId, mutation.patch)
+          enriched += 1
         } else if (mutation.kind === 'upsert-node') {
           if (mappedNodeId) {
             saveAtlasNodeOverride(mappedNodeId, {
@@ -281,8 +288,10 @@ export function ImportReconcile() {
               tech: mutation.node.tech,
               environments: mutation.node.environments,
             })
+            enriched += 1
           } else {
             upsertImportedNode(mutation.node)
+            nodesAdded += 1
           }
         } else if (mutation.kind === 'upsert-edge') {
           upsertImportedEdge({
@@ -290,11 +299,13 @@ export function ImportReconcile() {
             source: mappings[item.id] && mutation.edge.source === item.matchedAtlasId ? mappings[item.id] : mutation.edge.source,
             target: mappings[item.id] && mutation.edge.target === item.matchedAtlasId ? mappings[item.id] : mutation.edge.target,
           })
+          relationsAdded += 1
         }
       }
     }
 
     try { localStorage.setItem('aegc:import-mappings:v1', JSON.stringify(storedMappings)) } catch {}
+    setApplySummary({ nodes: nodesAdded, relations: relationsAdded, enriched })
     setActions((prev) => Object.fromEntries(Object.keys(prev).map((id) => [id, 'omitir'])))
   }
 
@@ -505,6 +516,17 @@ export function ImportReconcile() {
               </Button>
             </div>
           </div>
+
+          {applySummary && (
+            <div className="mx-6 mt-4 flex flex-wrap items-center gap-3 rounded-md border border-[color:var(--chart-4)]/35 bg-[color-mix(in_oklab,var(--chart-4)_10%,transparent)] px-3 py-2 text-[12px]">
+              <Check size={14} style={{ color: 'var(--chart-4)' }} />
+              <strong>Aplicado al Atlas:</strong>
+              <span>{applySummary.nodes} nodo{applySummary.nodes === 1 ? '' : 's'} nuevo{applySummary.nodes === 1 ? '' : 's'}</span>
+              <span>{applySummary.relations} relación{applySummary.relations === 1 ? '' : 'es'} nueva{applySummary.relations === 1 ? '' : 's'}</span>
+              <span>{applySummary.enriched} nodo{applySummary.enriched === 1 ? '' : 's'} enriquecido{applySummary.enriched === 1 ? '' : 's'}</span>
+              <span className="text-muted-foreground">Abrí “Mapa” para verificarlos.</span>
+            </div>
+          )}
 
           {liveResult?.secretsDetected ? (
             <div className="mx-6 mt-4 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px]">
