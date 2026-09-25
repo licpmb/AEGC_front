@@ -232,11 +232,29 @@ function orderTypeFromBody(raw?: string) {
 
 function targetForPostman(name: string, rawUrl: string) {
   const s = (name + ' ' + rawUrl).toUpperCase()
+
+  // APIs estándar SAP / API Management
   if (s.includes('CUSTOMER_RETURN_SIMULATION')) return 'api-customer-return-simulate'
   if (s.includes('CUSTOMER_RETURN')) return 'api-customer-return'
   if (s.includes('SALES_ORDER_SIMULATION')) return 'api-sales-order-simulate'
   if (s.includes('SALES_ORDER')) return 'api-sales-order'
+
+  // Catálogo técnico Cepas: Postman operativo de Gw.SapS4hana / microservicios.
+  // El host/ruta define qué nodo se enriquece; no se crean clones DEV/TEST/PRD.
+  if (/CEPASIDENTITY|IDENTITY\/AUTHENTICATION/.test(s)) return 'identity'
+  if (/MICROSERVICES:8036|\/V1\/KETAN\//.test(s)) return 'api-ketan'
+  if (/MICROSERVICES:8039|CEPAS\.CONSUMOLINEA|\/V1\/CONSUMO-LINEA\//.test(s)) return 'api-consumo-linea'
+  if (/GW\.SAPS4HANA|GW\.SAPS4HANA_|GWSAPS4HANA|\/SAPS4HANA\//.test(s)) return 'gw-sap4hana'
+
   return undefined
+}
+
+function postmanEndpointTarget(targetId: string) {
+  if (targetId === 'identity') return { target: 'Identity', scope: 'internal' as const }
+  if (targetId === 'api-ketan') return { target: 'KETAN', scope: 'internal' as const }
+  if (targetId === 'api-consumo-linea') return { target: 'Consumo en Línea', scope: 'internal' as const }
+  if (targetId === 'gw-sap4hana') return { target: 'Gateway SAP S/4HANA', scope: 'internal' as const }
+  return { target: 'SAP S/4HANA', scope: 'sap' as const }
 }
 
 export function parsePostman(text: string, fileName: string, nodes: AtlasNode[]): TechnicalReconcileResult {
@@ -266,12 +284,13 @@ export function parsePostman(text: string, fileName: string, nodes: AtlasNode[])
       note: item.name,
     } : undefined
 
+    const endpointTarget = postmanEndpointTarget(targetId)
     const endpoint: Endpoint = {
       id: slug((item.name || method) + '-' + rawUrl),
       method,
       path: url?.pathname ?? rawUrl,
-      target: 'SAP S/4HANA',
-      scope: 'sap',
+      target: endpointTarget.target,
+      scope: endpointTarget.scope,
       auth: req.auth?.type === 'bearer' ? 'Bearer / OAuth2' : req.auth?.type,
       headers: Object.fromEntries((req.header ?? []).filter((h:any) => !SENSITIVE.test(h.key ?? '')).map((h:any) => [h.key, h.value])),
       envUrls: url ? [{ env: environmentFrom(rawUrl) ?? 'QA', baseUrl: url.origin }] : undefined,
@@ -285,17 +304,19 @@ export function parsePostman(text: string, fileName: string, nodes: AtlasNode[])
     } else if (!existing) list.push(endpoint)
     byTarget.set(targetId, list)
 
-    if (orderType) items.push({
-      id: 'pm-' + slug((item.name || '') + '-' + orderType),
+    items.push({
+      id: 'pm-' + slug((item.name || method) + '-' + rawUrl),
       entity: 'endpoint',
-      label: (item.name || method) + ' · ' + orderType,
+      label: orderType ? (item.name || method) + ' · ' + orderType : (item.name || method),
       status: 'modificado',
       matchedAtlasId: targetId,
-      matchReason: 'Request de Postman asociado por servicio OData SAP.',
+      matchReason: orderType
+        ? 'Request de Postman asociado por servicio OData SAP.'
+        : 'Request de Postman asociado a un componente técnico conocido del Atlas.',
       confidence: 0.99,
       changes: [
         { field:'método', before:null, after:method },
-        { field:'tipo', before:null, after:orderType },
+        ...(orderType ? [{ field:'tipo', before:null, after:orderType }] : []),
         { field:'path', before:null, after:endpoint.path },
       ],
       defaultAction:'aplicar',
