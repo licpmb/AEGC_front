@@ -11,7 +11,7 @@ const EVENT = 'aegc:atlas-node-overrides-changed'
 const IMPORT_EVENT = 'aegc:atlas-imports-changed'
 
 export type AtlasNodeOverride = Partial<Pick<AtlasNode,
-  'label' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'
+  'label' | 'kind' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'
 >>
 
 export function loadAtlasNodeOverrides(): Record<string, AtlasNodeOverride> {
