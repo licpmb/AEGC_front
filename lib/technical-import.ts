@@ -3,8 +3,10 @@ import type { ReconcileItem, ReconcileResult } from './atlas-reconcile'
 
 export type TechnicalImportSource = 'appsettings' | 'postman'
 
+type ImportableNodePatch = Partial<Pick<AtlasNode, 'label' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'>>
+
 export type ImportMutation =
-  | { kind: 'patch-node'; nodeId: string; patch: Partial<AtlasNode> }
+  | { kind: 'patch-node'; nodeId: string; patch: ImportableNodePatch }
   | { kind: 'upsert-node'; node: AtlasNode }
   | { kind: 'upsert-edge'; edge: AtlasEdge }
 
@@ -299,6 +301,33 @@ export function parsePostman(text: string, fileName: string, nodes: AtlasNode[])
         defaultAction: existing ? 'aplicar' : 'revisar',
         mutations:[ existing ? { kind:'patch-node', nodeId:existing.id, patch:{ environments:node.environments } } : { kind:'upsert-node', node } ],
       })
+
+      for (const targetId of byTarget.keys()) {
+        const edgeId = 'import-apim-' + targetId
+        items.push({
+          id:'pm-rel-' + targetId,
+          entity:'relación',
+          label:'SAP API Management → ' + (nodes.find(n => n.id === targetId)?.label ?? targetId),
+          status:'falta_en_modelo',
+          matchReason:'La colección invoca este servicio a través del host de SAP API Management.',
+          confidence:0.99,
+          changes:[
+            { field:'origen', before:null, after:'SAP API Management' },
+            { field:'destino', before:null, after:nodes.find(n => n.id === targetId)?.label ?? targetId },
+            { field:'protocolo', before:null, after:'OData' },
+          ],
+          defaultAction:'revisar',
+          mutations:[{ kind:'upsert-edge', edge:{
+            id:edgeId,
+            source:'sap-api-management',
+            target:targetId,
+            label:'OData vía API Management',
+            direction:'bidireccional',
+            protocol:'OData',
+            health:'sin_dato',
+          }}],
+        })
+      }
     }
   }
 
