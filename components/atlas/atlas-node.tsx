@@ -32,6 +32,7 @@ const ICONS: Record<NodeKind, typeof Server> = {
   front: Layers,
   gateway: Radio,
   api: Code2,
+  microservice: Boxes,
   endpoint: Code2,
   datastore: Database,
   loader: DownloadCloud,
