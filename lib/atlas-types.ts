@@ -6,6 +6,7 @@ export type NodeKind =
   | 'front'
   | 'gateway'
   | 'api'
+  | 'microservice'
   | 'endpoint'
   | 'datastore'
   | 'loader'
@@ -183,6 +184,7 @@ export const KIND_META: Record<
   front: { label: 'Front', color: 'var(--chart-3)', group: 'aplicacion' },
   gateway: { label: 'Gateway', color: 'var(--chart-3)', group: 'aplicacion' },
   api: { label: 'API', color: 'var(--chart-3)', group: 'aplicacion' },
+  microservice: { label: 'Microservicio', color: 'var(--chart-3)', group: 'aplicacion' },
   endpoint: { label: 'Endpoint', color: 'var(--chart-3)', group: 'aplicacion' },
   datastore: { label: 'Datastore', color: 'var(--chart-4)', group: 'datos' },
   loader: { label: 'Loader', color: 'var(--chart-4)', group: 'datos' },
