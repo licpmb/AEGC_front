@@ -74,6 +74,21 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
   const Icon = ICONS[node.kind]
   const isHub = node.kind === 'erp' || node.kind === 'middleware'
   const country = node.country ? COUNTRY_META[node.country] : null
+  const environmentBadges = Array.from(
+    new Set((node.environments ?? []).map((env) => env.name)),
+  )
+    .map((name) => ({
+      name,
+      code:
+        name === 'Desarrollo'
+          ? 'DEV'
+          : name === 'QA'
+            ? 'QAS'
+            : name === 'Producción'
+              ? 'PRD'
+              : 'STG',
+    }))
+    .sort((a, b) => ['DEV', 'QAS', 'STG', 'PRD'].indexOf(a.code) - ['DEV', 'QAS', 'STG', 'PRD'].indexOf(b.code))
   const group = meta.group
   const surface = {
     background: `var(--map-node-${group}-bg)`,
@@ -181,7 +196,21 @@ function AtlasFlowNodeComponent({ data, selected }: NodeProps) {
                 {country.flag} {node.country}
               </span>
             )}
-            {node.status !== 'prod' && (
+            {environmentBadges.map((env) => (
+              <span
+                key={env.code}
+                title={env.name}
+                className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] font-semibold uppercase tracking-wide"
+                style={{
+                  color: surface.meta,
+                  background: surface.badgeBg,
+                  borderColor: surface.badgeBorder,
+                }}
+              >
+                {env.code}
+              </span>
+            ))}
+            {environmentBadges.length === 0 && node.status !== 'prod' && (
               <span
                 className="shrink-0 rounded-sm border px-1 py-px font-mono text-[9px] font-semibold uppercase tracking-wide"
                 style={{
