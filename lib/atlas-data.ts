@@ -526,6 +526,18 @@ export const ATLAS_NODES: AtlasNode[] = [
     tech: ['API', 'REST'],
   },
 
+  {
+    id: 'sap-api-management',
+    label: 'SAP API Management',
+    kind: 'middleware',
+    status: 'prod',
+    domain: 'Integración',
+    owner: 'Integraciones / SAP',
+    description: 'Capa de gobierno y exposición de APIs SAP consumidas por integraciones como GCC. El target exacto hacia CPI o S/4 debe validarse por proxy.',
+    x: 560, y: -180,
+    tech: ['SAP Integration Suite', 'API Management'],
+  },
+
   // APIs estándar SAP usadas por GCC
   {
     id: 'api-sales-order',
@@ -612,12 +624,15 @@ export const ATLAS_EDGES: AtlasEdge[] = [
   { id: 'dmp-api-sql', source: 'dmp-api', target: 'dmp-sql', label: 'persistencia', direction: 'inyeccion', protocol: 'JDBC', health: 'ok' },
   { id: 'dmp-sap', source: 'dmp-sql', target: 'sap-s4', label: 'programa SAP incorpora datos', direction: 'inyeccion', protocol: 'Batch', health: 'ok' },
 
-  { id: 'gw-gcc-api', source: 'gcc-gw', target: 'gcc-api', label: 'Gateway → API Cepas', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'gcc-api-cpi', source: 'gcc-api', target: 'cpi', label: 'API Cepas → CPI', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'cpi-api-so', source: 'cpi', target: 'api-sales-order', label: 'Sales Order', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
-  { id: 'cpi-api-so-sim', source: 'cpi', target: 'api-sales-order-simulate', label: 'Sales Order Simulate', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
-  { id: 'cpi-api-cr', source: 'cpi', target: 'api-customer-return', label: 'Customer Return', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
-  { id: 'cpi-api-cr-sim', source: 'cpi', target: 'api-customer-return-simulate', label: 'Customer Return Simulate', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
+  // Camino técnico Orders → SAP. La respuesta vuelve por la misma cadena.
+  // CPI queda fuera de este recorrido hasta confirmar que el target del proxy de
+  // API Management es efectivamente un iFlow y no el backend SAP directamente.
+  { id: 'orders-gw-s4', source: 'api-orders-v2', target: 'gw-sap4hana', label: 'Orders ↔ GW S/4HANA', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'gw-s4-apim', source: 'gw-sap4hana', target: 'sap-api-management', label: 'GW ↔ API Management', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'apim-api-so', source: 'sap-api-management', target: 'api-sales-order', label: 'Sales Order', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
+  { id: 'apim-api-so-sim', source: 'sap-api-management', target: 'api-sales-order-simulate', label: 'Sales Order Simulate', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
+  { id: 'apim-api-cr', source: 'sap-api-management', target: 'api-customer-return', label: 'Customer Return', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
+  { id: 'apim-api-cr-sim', source: 'sap-api-management', target: 'api-customer-return-simulate', label: 'Customer Return Simulate', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
   { id: 'api-so-sap', source: 'api-sales-order', target: 'sap-s4', label: 'API SAP → S/4', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
   { id: 'api-so-sim-sap', source: 'api-sales-order-simulate', target: 'sap-s4', label: 'API SAP → S/4', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
   { id: 'api-cr-sap', source: 'api-customer-return', target: 'sap-s4', label: 'API SAP → S/4', direction: 'bidireccional', protocol: 'OData', health: 'ok' },
