@@ -12,7 +12,9 @@ const IMPORT_EVENT = 'aegc:atlas-imports-changed'
 
 export type AtlasNodeOverride = Partial<Pick<AtlasNode,
   'label' | 'kind' | 'owner' | 'description' | 'domain' | 'status' | 'country' | 'tech' | 'endpoints' | 'environments'
->>
+>> & {
+  environmentsReplace?: boolean
+}
 
 export function loadAtlasNodeOverrides(): Record<string, AtlasNodeOverride> {
   if (typeof window === 'undefined') return {}
@@ -93,7 +95,9 @@ export function useAtlasNodes() {
         return {
           ...node,
           ...override,
-          environments: mergeEnvironments(node.environments, override.environments),
+          environments: override.environmentsReplace
+            ? (override.environments ?? [])
+            : mergeEnvironments(node.environments, override.environments),
         }
       }),
     [overrides, importedNodes],
@@ -144,4 +148,20 @@ export function useImportedEdges() {
     }
   }, [])
   return edges
+}
+
+
+export function saveAtlasNodeEnvironments(id: string, environments: NonNullable<AtlasNode['environments']>) {
+  const current = loadAtlasNodeOverrides()
+  const previous = current[id] ?? {}
+  const next = {
+    ...current,
+    [id]: {
+      ...previous,
+      environments,
+      environmentsReplace: true,
+    },
+  }
+  localStorage.setItem(KEY, JSON.stringify(next))
+  window.dispatchEvent(new CustomEvent(EVENT))
 }
