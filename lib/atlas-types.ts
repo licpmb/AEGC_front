@@ -1,5 +1,6 @@
 export type NodeKind =
   | 'erp'
+  | 'platform'
   | 'middleware'
   | 'dispatcher'
   | 'interface'
@@ -195,6 +196,7 @@ export const KIND_META: Record<
 > = {
   erp: { label: 'ERP', color: 'var(--chart-1)', group: 'core' },
   dispatcher: { label: 'Web Dispatcher', color: 'var(--chart-2)', group: 'plataforma' },
+  platform: { label: 'Plataforma', color: 'var(--chart-2)', group: 'plataforma' },
   middleware: { label: 'Middleware', color: 'var(--chart-2)', group: 'plataforma' },
   external: { label: 'Externo', color: 'var(--chart-5)', group: 'externo' },
   server: { label: 'Servidor', color: 'var(--chart-2)', group: 'plataforma' },
