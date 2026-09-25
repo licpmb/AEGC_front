@@ -5,11 +5,12 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import type { AtlasNode, CountryCode, NodeStatus } from '@/lib/atlas-types'
+import { KIND_META, type AtlasNode, type CountryCode, type NodeKind, type NodeStatus } from '@/lib/atlas-types'
 import { saveAtlasNodeOverride } from '@/lib/atlas-local'
 
 export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => void }) {
   const [label, setLabel] = useState(node.label)
+  const [kind, setKind] = useState<NodeKind>(node.kind)
   const [owner, setOwner] = useState(node.owner)
   const [domain, setDomain] = useState(node.domain)
   const [description, setDescription] = useState(node.description)
@@ -18,13 +19,14 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
   const [tech, setTech] = useState((node.tech ?? []).join(', '))
 
   useEffect(() => {
-    setLabel(node.label); setOwner(node.owner); setDomain(node.domain); setDescription(node.description)
+    setLabel(node.label); setKind(node.kind); setOwner(node.owner); setDomain(node.domain); setDescription(node.description)
     setStatus(node.status); setCountry(node.country ?? ''); setTech((node.tech ?? []).join(', '))
   }, [node])
 
   function save() {
     saveAtlasNodeOverride(node.id, {
       label: label.trim() || node.label,
+      kind,
       owner: owner.trim(),
       domain: domain.trim(),
       description: description.trim(),
@@ -45,6 +47,11 @@ export function NodeEditor({ node, onClose }: { node: AtlasNode; onClose: () => 
     </header>
     <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4 text-[12px]">
       <label className="block"><span className="mb-1 block text-muted-foreground">Nombre</span><Input value={label} onChange={(e) => setLabel(e.target.value)}/></label>
+      <label className="block"><span className="mb-1 block text-muted-foreground">Tipo de nodo</span>
+        <select className="h-9 w-full rounded-md border border-border bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as NodeKind)}>
+          {Object.entries(KIND_META).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}
+        </select>
+      </label>
       <label className="block"><span className="mb-1 block text-muted-foreground">Owner</span><Input value={owner} onChange={(e) => setOwner(e.target.value)}/></label>
       <label className="block"><span className="mb-1 block text-muted-foreground">Dominio</span><Input value={domain} onChange={(e) => setDomain(e.target.value)}/></label>
       <label className="block"><span className="mb-1 block text-muted-foreground">Descripción</span><Textarea className="min-h-28" value={description} onChange={(e) => setDescription(e.target.value)}/></label>
