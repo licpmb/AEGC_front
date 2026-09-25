@@ -1031,7 +1031,7 @@ function MapInner() {
 
     setSelectedEdgeId(`eff-${nextEdge.id}`)
     requestAnimationFrame(() => persistLayoutNow())
-  }, [pushUndoSnapshot, persistLayoutNow])
+  }, [pushUndoSnapshot, persistLayoutNow, allRelations])
 
   const deleteRelation = useCallback((edgeId: string) => {
     pushUndoSnapshot()
@@ -1145,6 +1145,35 @@ function MapInner() {
       edgeEndpointsRef.current = next
       return next
     })
+
+    // El cambio visual de origen/destino también actualiza la relación canónica.
+    // De esta forma Detalle, Conexiones, editor y cualquier otra vista leen
+    // inmediatamente los mismos endpoints, sin una segunda edición manual.
+    const created = createdEdgesRef.current.find((edge) => edge.id === baseId)
+    if (created) {
+      setCreatedEdges((prev) => {
+        const next = prev.map((edge) =>
+          edge.id === baseId ? { ...edge, source, target } : edge,
+        )
+        createdEdgesRef.current = next
+        return next
+      })
+    } else {
+      const currentRelation =
+        relationOverridesRef.current[baseId] ??
+        allRelations.find((edge) => edge.id === baseId)
+
+      if (currentRelation) {
+        setRelationOverrides((prev) => {
+          const next = {
+            ...prev,
+            [baseId]: { ...currentRelation, source, target },
+          }
+          relationOverridesRef.current = next
+          return next
+        })
+      }
+    }
 
     setEdgeHandles((prev) => {
       const next = {
