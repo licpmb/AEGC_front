@@ -151,16 +151,16 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
             <span className="rounded border border-amber-500/50 px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300" title="Las otras secciones conservan datos ilustrativos">{native ? 'ARCHI · Modelo local' : 'DEMO · Datos ilustrativos'}</span>
             {buildInfo && (
               <span
-                className="hidden rounded border border-border px-2 py-1 font-mono text-[9.5px] text-muted-foreground xl:inline"
+                className="inline-flex items-center gap-1.5 rounded border border-border bg-background px-2 py-1 font-mono text-[9.5px] text-muted-foreground"
                 title={[
+                  buildInfo.commitSha ? `Commit vigente: ${buildInfo.commitSha}` : 'Commit vigente: local',
                   buildInfo.deploymentId ? `Deployment: ${buildInfo.deploymentId}` : null,
-                  buildInfo.commitSha ? `Commit: ${buildInfo.commitSha}` : null,
                   buildInfo.deploymentUrl ? `URL: ${buildInfo.deploymentUrl}` : null,
                   buildInfo.environment ? `Env: ${buildInfo.environment}` : null,
                 ].filter(Boolean).join('\n')}
               >
-                DEP {buildInfo.deploymentId ? buildInfo.deploymentId.replace(/^dpl_/, '').slice(0, 8) : 'local'}
-                {buildInfo.commitSha ? ` · ${buildInfo.commitSha.slice(0, 7)}` : ''}
+                <span className="text-foreground">COMMIT</span>
+                <span>{buildInfo.commitSha ? buildInfo.commitSha.slice(0, 7) : 'local'}</span>
               </span>
             )}
             <span className="hidden items-center gap-1.5 text-[12.5px] text-muted-foreground sm:inline-flex">
