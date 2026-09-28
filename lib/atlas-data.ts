@@ -129,6 +129,9 @@ export const ATLAS_NODES: AtlasNode[] = [
         operation: 'loader_linux_logs',
         evidence: 'Loaders observados en DEV/TEST.',
       },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'ibp', type: 'LOADER', result: 'Success', lastSeen: '2026-06-12 06:50:02', operation: 'loader_ibp_send_processed_files', health: 'ok', evidence: 'Proceso IBP observado; topología funcional todavía no mapeada.' },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'krikos', type: 'LOADER', result: 'Success', lastSeen: '2026-06-12 10:00:14', operation: 'krikos_process', health: 'ok', evidence: 'Proceso Krikos observado; se mantiene como descubrimiento de runtime hasta mapear su interfaz.' },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'amc', type: 'LOADER', result: 'Success', lastSeen: '2026-06-15 23:30:05', operation: 'amc_process', health: 'ok', evidence: 'Proceso AMC observado; topología funcional pendiente.' },
     ],
   },
   {
@@ -162,6 +165,9 @@ export const ATLAS_NODES: AtlasNode[] = [
         operation: 'builder_gcc_general_sync_process_s4',
         evidence: 'Mismo proceso observado en DEV/TEST.',
       },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'gvd_migration', type: 'BUILDER', result: 'Success', lastSeen: '2026-06-15 23:40:23', operation: 'gvd_order_sync_process', health: 'ok', evidence: 'Procesos GVD observados; no se enlazan automáticamente con API.GVD hasta confirmar identidad técnica.' },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'ibp', type: 'BUILDER', result: 'Success', lastSeen: '2026-06-12 06:35:29', operation: 'ibp_csv_process', health: 'ok', evidence: 'Builder IBP observado; relación funcional pendiente.' },
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'krikos', type: 'BUILDER', result: 'Success', lastSeen: '2026-06-12 10:30:21', operation: 'krikos_process', health: 'ok', evidence: 'Builder Krikos observado; relación funcional pendiente.' },
     ],
   },
 
@@ -176,6 +182,10 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Servicios de identidad conectados con CPI y usados por otros desarrollos.',
     x: 820, y: 140,
     tech: ['Microservices'],
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'Identity.Api', type: 'API', result: 'Success', lastSeen: '2026-09-07 15:30:30', operation: 'POST /v2/identity/', health: 'ok', evidence: 'Identity.Api observada en DEV. Se omiten completamente payloads y datos personales.' },
+      { sourceDb: 'sql-db-des', environment: 'QAS', rawEnvironment: 'DESARROLLO', component: 'Identity.Api', type: 'API', result: 'Success', lastSeen: '2026-09-07 15:53:49', operation: 'POST /v2/identity/', health: 'ok', evidence: 'La URL observada contiene identity-test; se normaliza como QAS aunque LogGralEnv figure DESARROLLO.' },
+    ],
   },
   {
     id: 'ketan',
@@ -356,6 +366,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'API de DMP.',
     x: 1300, y: 520,
     parentId: 'dmp',
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'status-sync', type: 'API', result: 'Success', lastSeen: '2026-06-16 17:00:30', operation: 'GET /status-sync/rrhh-validated', httpStatus: 204, health: 'ok', evidence: 'Proceso RRHH observado. Se asocia a DMP por función, pero queda marcado como asociación pendiente de corroborar por configuración.' },
+    ],
   },
   {
     id: 'dmp-sql',
@@ -399,6 +412,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Integración bancaria por SFTP usando el servidor de interfaces. Código FI-07.',
     x: 560, y: 790,
     country: 'AR',
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'macro', type: 'LOADER', result: 'Success', lastSeen: '2026-06-15 23:45:09', operation: 'loader_macro_files_process', health: 'ok', evidence: 'Procesos de archivos MACRO observados ejecutando en DEV/TEST.' },
+    ],
   },
   {
     id: 'visma',
@@ -409,6 +425,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     owner: 'Capital Humano',
     description: 'Integración por SFTP usando el servidor de interfaces. Código HCM-01.',
     x: 560, y: 860,
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'visma', type: 'LOADER', result: 'Success', lastSeen: '2026-06-15 23:45:14', operation: 'visma_process', health: 'ok', evidence: 'Proceso Visma observado ejecutando en DEV/TEST.' },
+    ],
   },
   {
     id: 'cot',
@@ -420,6 +439,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Servicio COT hacia ARBA mediante archivos y servidor de interfaces. Código SD-21.',
     x: 560, y: 930,
     country: 'AR',
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'servicio_cot', type: 'LOADER', result: 'Success', lastSeen: '2026-06-15 23:47:02', operation: 'servicio_cot_process', health: 'ok', evidence: 'Servicio COT observado ejecutando. El histórico también contiene errores SFTP con ejecuciones exitosas posteriores.' },
+    ],
   },
   {
     id: 'intouch',
@@ -649,6 +671,9 @@ export const ATLAS_NODES: AtlasNode[] = [
       { name: 'Desarrollo', server: 'apisdev.grupocepas.com', url: 'https://apisdev.grupocepas.com/Gw.WebPedidos', status: 'ok' },
       { name: 'QA', server: 'apis.grupocepas.com', url: 'https://apis.grupocepas.com/Gw.Sap4Hana', status: 'ok' },
     ],
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'WEBPedidos', type: 'API', result: 'Warning', lastSeen: '2026-06-16 16:18:44', operation: 'GET /WEBPedidos/OrderLib/InitialData', httpStatus: 200, health: 'ok', evidence: 'DD_GENERAL_LOG marca Warning pero registra HTTP 200 OK; no se considera degradación.' },
+    ],
   },
   {
     id: 'api-consumo-linea',
@@ -781,6 +806,9 @@ export const ATLAS_NODES: AtlasNode[] = [
     x: 1040, y: 700,
     parentId: 'gcc',
     tech: ['API', 'REST'],
+    runtimeObservations: [
+      { sourceDb: 'sql-db-des', environment: 'DEV', rawEnvironment: 'DESARROLLO', component: 'Api.ProductImage', type: 'API', result: 'Success', lastSeen: '2026-09-03 19:27:35', operation: 'GET /v1/product-images', health: 'ok', evidence: 'Endpoint de imágenes observado activo en DEV.' },
+    ],
   },
   {
     id: 'cepas-order-api',
@@ -877,13 +905,33 @@ export const ATLAS_EDGES: AtlasEdge[] = [
 
   // KETAN: 2 iFlows confirmados en CPI.
   // SAP → CPI → Api.Ketan → KETAN (Órdenes) y la confirmación recorre el camino inverso.
-  { id: 'cpi-gw-s4-runtime', source: 'cpi', target: 'gw-sap4hana', label: 'KETAN / SCL · iFlows → GW S/4HANA', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'gw-s4-api-ketan', source: 'gw-sap4hana', target: 'api-ketan', label: '/Sap4Hana/ketan · observado en MS_Monitor', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan', label: 'API KETAN · POST /v1/ketan/orders observado', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  {
+    id: 'cpi-gw-s4-runtime', source: 'cpi', target: 'gw-sap4hana',
+    label: 'KETAN / SCL · iFlows → GW S/4HANA', direction: 'bidireccional', protocol: 'REST', health: 'ok',
+    evidence: { level: 'confirmado_config', source: 'Integration Suite', note: 'El receiver HTTP del iFlow KETAN apunta a Gw.SapS4hana; SCL muestra el mismo patrón de adapters.' },
+  },
+  {
+    id: 'gw-s4-api-ketan', source: 'gw-sap4hana', target: 'api-ketan',
+    label: '/Sap4Hana/ketan ↔ Api.Ketan', direction: 'bidireccional', protocol: 'REST', health: 'ok',
+    evidence: { level: 'inferido', source: 'MS_Monitor', note: 'Se observan rutas KETAN en el Gateway y Api.Ketan activo, pero DD_GENERAL_LOG no trae correlación suficiente para probar el hop directo.' },
+  },
+  {
+    id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan',
+    label: 'Api.Ketan ↔ KETAN', direction: 'bidireccional', protocol: 'REST', health: 'ok',
+    evidence: { level: 'inferido', source: 'MS_Monitor', note: 'Api.Ketan procesa /v1/ketan/*; falta confirmar su target externo/configuración.' },
+  },
 
-  // Consumo en Línea: MS_Monitor confirma las rutas /Sap4Hana/ConsumoLinea/* en el Gateway.
-  { id: 'gw-s4-api-cdl', source: 'gw-sap4hana', target: 'api-consumo-linea', label: '/Sap4Hana/ConsumoLinea/* · observado', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
-  { id: 'api-cdl-cdl', source: 'api-consumo-linea', target: 'cdl', label: 'API Cepas Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  // Consumo en Línea: el Gateway está confirmado por runtime; el salto exacto al API sigue inferido.
+  {
+    id: 'gw-s4-api-cdl', source: 'gw-sap4hana', target: 'api-consumo-linea',
+    label: '/Sap4Hana/ConsumoLinea/* ↔ Api.ConsumoLinea', direction: 'bidireccional', protocol: 'REST', health: 'ok',
+    evidence: { level: 'inferido', source: 'MS_Monitor', note: 'MS_Monitor confirma las rutas del Gateway, pero no el target interno correlacionado.' },
+  },
+  {
+    id: 'api-cdl-cdl', source: 'api-consumo-linea', target: 'cdl',
+    label: 'API Cepas Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok',
+    evidence: { level: 'declarado', source: 'Usuario', note: 'Asociación funcional conocida; pendiente validar target técnico en configuración/runtime correlacionado.' },
+  },
 
   // CAOLIX: 6 iFlows (rendición + confirmación por AR/CL/UY) y un Value Mapping en el package.
   { id: 'cpi-caolix', source: 'cpi', target: 'caolix', label: '6 iFlows · rendición / confirmación', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
