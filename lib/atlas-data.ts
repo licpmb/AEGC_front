@@ -108,6 +108,28 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Procesos que leen datos desde BigQuery y los preparan/cargan para consumo en SQL Server.',
     x: 800, y: 1080,
     tech: ['Loaders'],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'loader_product_process_s4',
+        type: 'LOADER',
+        result: 'Success',
+        lastSeen: '2026-09-28 14:13:39',
+        operation: 'loader_product_process_s4',
+        evidence: 'Loader S/4 observado ejecutando en producción.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'loader_linux_logs',
+        type: 'LOADER',
+        result: 'Success',
+        lastSeen: '2026-06-15 23:40:40',
+        operation: 'loader_linux_logs',
+        evidence: 'Loaders observados en DEV/TEST.',
+      },
+    ],
   },
   {
     id: 'builders',
@@ -119,6 +141,28 @@ export const ATLAS_NODES: AtlasNode[] = [
     description: 'Procesos de preparación y construcción de modelos/tablas para consumo por otros desarrollos y SQL Server.',
     x: 1040, y: 1080,
     tech: ['Builders'],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'builder_gcc_general_sync_process_s4',
+        type: 'BUILDER',
+        result: 'Success',
+        lastSeen: '2026-09-22 22:18:22',
+        operation: 'builder_gcc_general_sync_process_s4',
+        evidence: 'Builder GCC/S4 observado ejecutando en producción.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'builder_gcc_general_sync_process_s4',
+        type: 'BUILDER',
+        result: 'Success',
+        lastSeen: '2026-06-16 09:01:19',
+        operation: 'builder_gcc_general_sync_process_s4',
+        evidence: 'Mismo proceso observado en DEV/TEST.',
+      },
+    ],
   },
 
   // Interfaces principales
@@ -486,6 +530,39 @@ export const ATLAS_NODES: AtlasNode[] = [
     environments: [
       { name: 'Desarrollo', server: 'apisdev.grupocepas.com', url: 'https://apisdev.grupocepas.com/Gw.Sap4hana_dev', status: 'ok' },
       { name: 'QA', server: 'apisdev.grupocepas.com', url: 'https://apisdev.grupocepas.com/Gw.Sap4hana_TEST', status: 'ok' },
+      { name: 'Producción', server: 'apis.grupocepas.com', url: 'https://apis.grupocepas.com/Gw.SapS4hana', status: 'ok' },
+    ],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'GATEWAY.Sap4Hana',
+        type: 'GATEWAY',
+        result: 'Success',
+        lastSeen: '2026-09-02 23:55:00',
+        operation: 'GET /Sap4Hana/ketan/pallets',
+        evidence: 'MS_Monitor confirma tráfico productivo KETAN a través del Gateway S/4HANA.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'GATEWAY.Sap4Hana',
+        type: 'GATEWAY',
+        result: 'Success',
+        lastSeen: '2026-08-24 23:00:13',
+        operation: 'GET /status-sync/rrhh-validated',
+        evidence: 'Actividad observada en la base DEV/TEST.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'QAS',
+        component: 'Gw.SapS4Hana_TEST',
+        type: 'GATEWAY',
+        result: 'Success',
+        lastSeen: '2026-08-03 12:48:04',
+        operation: 'PATCH /Order',
+        evidence: 'El componente y la URL observados contienen _TEST; se normaliza como QAS aunque la fila exportada indique DESARROLLO.',
+      },
     ],
   },
   {
@@ -502,6 +579,28 @@ export const ATLAS_NODES: AtlasNode[] = [
     environments: [
       { name: 'Desarrollo', server: 'apisdev.grupocepas.com', url: 'https://apisdev.grupocepas.com/Gw.GCC.SmartPanel_DEV/', status: 'ok' },
       { name: 'QA', server: 'apisdev.grupocepas.com', url: 'https://apisdev.grupocepas.com/Gw.GCC.SmartPanel_TEST', status: 'ok' },
+    ],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'Api.Gateway.GCC.SmartPanel',
+        type: 'GATEWAY',
+        result: 'Warning',
+        lastSeen: '2026-09-21 15:25:44',
+        operation: 'GET /WEBSmartPanel/Order/6941',
+        evidence: 'La fila figura Warning pero la respuesta registrada es HTTP 200 OK; no se interpreta automáticamente como degradación.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'WEBSmartPanel',
+        type: 'API',
+        result: 'Success',
+        lastSeen: '2026-06-16 16:25:10',
+        operation: 'GET /WEBSmartPanel/Identity/User',
+        evidence: 'Actividad observada en la base DEV/TEST.',
+      },
     ],
   },
   {
@@ -558,10 +657,22 @@ export const ATLAS_NODES: AtlasNode[] = [
     status: 'prod',
     domain: 'Aplicaciones',
     owner: 'Operaciones / Integraciones',
-    description: 'API técnica de Consumo en Línea.',
+    description: 'API técnica de Consumo en Línea. MS_Monitor confirma operaciones de Consumo en Línea a través de GATEWAY.Sap4Hana en DEV/TEST.',
     x: 1040, y: 300,
     parentId: 'cdl',
     tech: ['API', 'REST'],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'GATEWAY.Sap4Hana',
+        type: 'GATEWAY',
+        result: 'Success',
+        lastSeen: '2026-06-15 23:55:29',
+        operation: 'POST /Sap4Hana/ConsumoLinea/OrderLine',
+        evidence: 'Se observan Order, OrderItems, OrderLine y OrderConsumption bajo el Gateway S/4HANA.',
+      },
+    ],
   },
   {
     id: 'api-employee',
@@ -602,6 +713,28 @@ export const ATLAS_NODES: AtlasNode[] = [
     environments: [
       { name: 'Desarrollo', server: 'cepaslabo2:9020', url: 'http://cepaslabo2:9020/Cepas.Ketan/', status: 'ok' },
     ],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'Api.Ketan_PROD',
+        type: 'API',
+        result: 'Success',
+        lastSeen: '2026-09-19 23:54:54',
+        operation: 'POST /v1/ketan/orders',
+        evidence: 'API KETAN observada en producción con HTTP 200.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'Api.Ketan_DEV',
+        type: 'API',
+        result: 'Success',
+        lastSeen: '2026-08-03 12:58:56',
+        operation: 'GET /',
+        evidence: 'API KETAN observada activa en DEV.',
+      },
+    ],
   },
   {
     id: 'api-orders-v2',
@@ -614,6 +747,28 @@ export const ATLAS_NODES: AtlasNode[] = [
     x: 1040, y: 620,
     parentId: 'gcc',
     tech: ['API', 'REST'],
+    runtimeObservations: [
+      {
+        sourceDb: 'sql-db',
+        environment: 'PRD',
+        component: 'Api.Orders_V2_PROD',
+        type: 'API',
+        result: 'Success',
+        lastSeen: '2026-09-02 18:56:46',
+        operation: 'POST /v1/order',
+        evidence: 'Orders V2 observada en producción con HTTP 200.',
+      },
+      {
+        sourceDb: 'sql-db-des',
+        environment: 'DEV',
+        component: 'Api.Orders_V2_DEV',
+        type: 'API',
+        result: 'Success',
+        lastSeen: '2026-06-16 19:02:45',
+        operation: 'POST /v2/order',
+        evidence: 'Orders V2 observada en DEV con HTTP 200.',
+      },
+    ],
   },
   {
     id: 'api-product-image',
@@ -722,11 +877,12 @@ export const ATLAS_EDGES: AtlasEdge[] = [
 
   // KETAN: 2 iFlows confirmados en CPI.
   // SAP → CPI → Api.Ketan → KETAN (Órdenes) y la confirmación recorre el camino inverso.
-  { id: 'cpi-gw-s4-ketan', source: 'cpi', target: 'gw-sap4hana', label: 'KETAN · iFlow → GW S/4HANA', direction: 'inyeccion', protocol: 'REST', health: 'ok' },
-  { id: 'gw-s4-ketan', source: 'gw-sap4hana', target: 'ketan', label: '/Sap4Hana/ketan · backend final por confirmar', direction: 'inyeccion', protocol: 'REST', health: 'sin_dato' },
+  { id: 'cpi-gw-s4-runtime', source: 'cpi', target: 'gw-sap4hana', label: 'KETAN / SCL · iFlows → GW S/4HANA', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'gw-s4-api-ketan', source: 'gw-sap4hana', target: 'api-ketan', label: '/Sap4Hana/ketan · observado en MS_Monitor', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  { id: 'api-ketan-ketan', source: 'api-ketan', target: 'ketan', label: 'API KETAN · POST /v1/ketan/orders observado', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
-  // Consumo en Línea: 3 iFlows SAP→SCL + 1 iFlow SCL→SAP.
-  { id: 'cpi-api-cdl', source: 'cpi', target: 'api-consumo-linea', label: '4 iFlows · HTTP hacia/desde SCL', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
+  // Consumo en Línea: MS_Monitor confirma las rutas /Sap4Hana/ConsumoLinea/* en el Gateway.
+  { id: 'gw-s4-api-cdl', source: 'gw-sap4hana', target: 'api-consumo-linea', label: '/Sap4Hana/ConsumoLinea/* · observado', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
   { id: 'api-cdl-cdl', source: 'api-consumo-linea', target: 'cdl', label: 'API Cepas Consumo en Línea', direction: 'bidireccional', protocol: 'REST', health: 'ok' },
 
   // CAOLIX: 6 iFlows (rendición + confirmación por AR/CL/UY) y un Value Mapping en el package.
