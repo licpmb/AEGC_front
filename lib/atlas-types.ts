@@ -137,6 +137,23 @@ export interface Endpoint {
   variants?: EndpointVariant[]
 }
 
+export interface RuntimeObservation {
+  /** Base de monitoreo que originó la evidencia. */
+  sourceDb: 'sql-db' | 'sql-db-des'
+  /** Ambiente tal como fue observado/normalizado para el Atlas. */
+  environment: 'DEV' | 'QAS' | 'PRD'
+  /** LogGralArea observado en DD_GENERAL_LOG. */
+  component: string
+  type: string
+  result: 'Success' | 'Warning' | 'Error' | string
+  /** Última evidencia incluida en el snapshot suministrado. */
+  lastSeen?: string
+  /** Método/ruta/operación observada sin payload sensible. */
+  operation?: string
+  /** Nota breve de evidencia; nunca guardar LogGralText completo. */
+  evidence?: string
+}
+
 export interface IntegrationArtifact {
   id: string
   name: string
@@ -173,6 +190,8 @@ export interface AtlasNode {
   environments?: Environment[]
   /** artifacts técnicos asociados (p.ej. iFlows de SAP Integration Suite) */
   artifacts?: IntegrationArtifact[]
+  /** Evidencia runtime sanitizada derivada de MS_Monitor.dbo.DD_GENERAL_LOG. */
+  runtimeObservations?: RuntimeObservation[]
   sla?: string
   volume?: string
   /** tamaño manual del nodo en el mapa (px); opcional */
