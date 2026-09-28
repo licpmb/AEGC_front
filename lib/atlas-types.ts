@@ -142,16 +142,37 @@ export interface RuntimeObservation {
   sourceDb: 'sql-db' | 'sql-db-des'
   /** Ambiente tal como fue observado/normalizado para el Atlas. */
   environment: 'DEV' | 'QAS' | 'PRD'
+  /** Valor original de LogGralEnv para auditoría de normalización. */
+  rawEnvironment?: string
+  /** LogGranlId; identificador técnico del evento. */
+  logId?: string
+  /** TypeId observado en DD_GENERAL_LOG. */
+  type: string
   /** LogGralArea observado en DD_GENERAL_LOG. */
   component: string
-  type: string
+  /** LogGralName sanitizado; nunca payloads. */
+  name?: string
   result: 'Success' | 'Warning' | 'Error' | string
-  /** Última evidencia incluida en el snapshot suministrado. */
+  startedAt?: string
+  finishedAt?: string
+  /** Alias de compatibilidad para snapshots previos. */
   lastSeen?: string
+  elapsedSeconds?: number
+  elapsedMaxSeconds?: number
   /** Método/ruta/operación observada sin payload sensible. */
   operation?: string
+  /** HTTP status extraído cuando sea inequívoco. */
+  httpStatus?: number
+  /** Salud interpretada; se calcula con resultado + HTTP + recuperación posterior. */
+  health?: 'ok' | 'degradado' | 'caido' | 'sin_dato'
   /** Nota breve de evidencia; nunca guardar LogGralText completo. */
   evidence?: string
+}
+
+export interface ArchitectureEvidence {
+  level: 'confirmado_runtime' | 'confirmado_config' | 'declarado' | 'inferido' | 'pendiente'
+  source: 'MS_Monitor' | 'Integration Suite' | 'Postman' | 'ArchiMate' | 'Usuario' | 'Otro'
+  note?: string
 }
 
 export interface IntegrationArtifact {
@@ -207,6 +228,8 @@ export interface AtlasEdge {
   direction: FlowDirection
   protocol: 'IDoc' | 'OData' | 'REST' | 'SOAP' | 'JDBC' | 'Batch' | 'CDC' | 'SFTP' | 'Manual' | 'Por definir'
   health: 'ok' | 'degradado' | 'caido' | 'sin_dato'
+  /** Procedencia de la relación para no confundir evidencia con inferencia. */
+  evidence?: ArchitectureEvidence
 }
 
 export const KIND_META: Record<
