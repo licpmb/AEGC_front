@@ -95,6 +95,21 @@ export function RelationEditor({
         </select>
       </label>
 
+      {edge.evidence && (
+        <div className="rounded-md border border-border bg-background p-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Evidencia</span>
+            <span className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[9px] uppercase">
+              {edge.evidence.level.replaceAll('_', ' ')}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] font-medium">{edge.evidence.source}</p>
+          {edge.evidence.note && (
+            <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground">{edge.evidence.note}</p>
+          )}
+        </div>
+      )}
+
       {!valid && <p className="text-[11px] text-destructive">Origen y destino deben ser nodos distintos.</p>}
       <p className="rounded border border-border bg-background p-2 text-[10.5px] text-muted-foreground">También podés cambiar origen/destino arrastrando los extremos de la flecha directamente sobre el mapa.</p>
     </div>
