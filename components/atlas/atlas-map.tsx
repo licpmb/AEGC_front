@@ -521,20 +521,25 @@ function MapInner() {
       const legacyRaw = window.localStorage.getItem(PREVIOUS_LAYOUT_STORAGE_KEY)
       if (raw || legacyRaw) {
         const saved = JSON.parse(raw ?? legacyRaw ?? '{}') as PersistedLayout
-        const preserveLegacyPositions = Boolean(raw)
         if (saved?.version === 1 && Array.isArray(saved.nodes)) {
           const byId = new Map(saved.nodes.map((node) => [node.id, node]))
-          setNodes((prev) =>
-            prev.map((node) => {
+          setNodes((prev) => {
+            const restored = prev.map((node) => {
               const persisted = byId.get(node.id)
               if (!persisted) return node
               return {
                 ...node,
-                position: preserveLegacyPositions ? { ...persisted.position } : node.position,
+                // v4 y v5 representan el mismo contrato de layout. La migración anterior
+                // descartaba posiciones v4 y terminaba reemplazándolas por el layout base.
+                position: { ...persisted.position },
                 style: persisted.style ? { ...persisted.style } : node.style,
               }
-            }),
-          )
+            })
+            // Mantener el ref sincronizado desde el mismo tick evita que un flush de
+            // pagehide/unmount pueda volver a persistir el layout previo al restore.
+            nodesRef.current = restored
+            return restored
+          })
           if (saved.edgeHandles && typeof saved.edgeHandles === 'object') {
             const restoredHandles = Object.fromEntries(
               Object.entries(saved.edgeHandles).map(([id, handles]) => [id, { ...handles }]),
