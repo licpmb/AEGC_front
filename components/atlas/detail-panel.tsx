@@ -318,6 +318,75 @@ export function DetailPanel({
             </div>
           )}
 
+          {node.runtimeObservations && node.runtimeObservations.length > 0 && (
+            <div>
+              <SectionTitle icon={Activity}>Observado en MS_Monitor ({node.runtimeObservations.length})</SectionTitle>
+              <div className="overflow-hidden rounded-lg border border-border">
+                {node.runtimeObservations.map((obs, i) => {
+                  const resultColor =
+                    obs.result === 'Error'
+                      ? 'var(--destructive)'
+                      : obs.result === 'Success'
+                        ? 'var(--chart-4)'
+                        : 'var(--chart-1)'
+
+                  return (
+                    <div
+                      key={`${obs.sourceDb}-${obs.environment}-${obs.component}-${i}`}
+                      className={cn(
+                        'bg-card px-3 py-2.5',
+                        i > 0 && 'border-t border-border',
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[9px] font-semibold">
+                              {obs.environment}
+                            </span>
+                            <span className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                              {obs.sourceDb}
+                            </span>
+                            <span
+                              className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-mono text-[9px]"
+                              style={{
+                                color: resultColor,
+                                background: `color-mix(in oklab, ${resultColor} 14%, transparent)`,
+                              }}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: resultColor }} />
+                              {obs.result}
+                            </span>
+                          </div>
+                          <p className="mt-1.5 truncate text-[12px] font-semibold">{obs.component}</p>
+                          <p className="font-mono text-[10px] text-muted-foreground">{obs.type}</p>
+                        </div>
+                        {obs.lastSeen && (
+                          <span className="shrink-0 text-right font-mono text-[9px] text-muted-foreground">
+                            {obs.lastSeen}
+                          </span>
+                        )}
+                      </div>
+                      {obs.operation && (
+                        <p className="mt-2 rounded border border-border bg-secondary/40 px-2 py-1 font-mono text-[10px]">
+                          {obs.operation}
+                        </p>
+                      )}
+                      {obs.evidence && (
+                        <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+                          {obs.evidence}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="mt-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
+                Evidencia runtime sanitizada. No se persisten payloads ni LogGralText completos.
+              </p>
+            </div>
+          )}
+
           {node.artifacts && node.artifacts.length > 0 && (
             <div>
               <SectionTitle icon={Workflow}>Artifacts CPI ({node.artifacts.length})</SectionTitle>
