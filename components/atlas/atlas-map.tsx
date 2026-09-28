@@ -213,6 +213,7 @@ type UndoSnapshot = {
   createdEdges: AtlasEdge[]
   relationOverrides: Record<string, AtlasEdge>
   deletedEdgeIds: string[]
+  collapsedIds: string[]
 }
 
 type PersistedLayout = UndoSnapshot & {
@@ -267,6 +268,7 @@ function MapInner() {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      collapsedRef.current = next
       return next
     })
   }, [])
@@ -461,6 +463,7 @@ function MapInner() {
   const createdEdgesRef = useRef(createdEdges)
   const relationOverridesRef = useRef(relationOverrides)
   const deletedEdgeIdsRef = useRef(deletedEdgeIds)
+  const collapsedRef = useRef(collapsed)
   const groupDragRef = useRef<{
     id: string
     origin: { x: number; y: number }
@@ -476,6 +479,7 @@ function MapInner() {
   createdEdgesRef.current = createdEdges
   relationOverridesRef.current = relationOverrides
   deletedEdgeIdsRef.current = deletedEdgeIds
+  collapsedRef.current = collapsed
   // React Flow guarda el resize principalmente en "measured/dimensions".
   // Lo normalizamos también a style.width/style.height para que sobreviva
   // desmontajes, cambios de vista y recargas.
@@ -569,6 +573,11 @@ function MapInner() {
             deletedEdgeIdsRef.current = restoredDeleted
             setDeletedEdgeIds(restoredDeleted)
           }
+          if (Array.isArray(saved.collapsedIds)) {
+            const restoredCollapsed = new Set(saved.collapsedIds)
+            collapsedRef.current = restoredCollapsed
+            setCollapsed(restoredCollapsed)
+          }
         }
       }
     } catch {
@@ -604,6 +613,7 @@ function MapInner() {
           Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
         ),
         deletedEdgeIds: [...deletedEdgeIdsRef.current],
+        collapsedIds: [...collapsedRef.current],
       }
       window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(payload))
     } catch {
@@ -624,7 +634,7 @@ function MapInner() {
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     }
-  }, [nodes, edgeHandles, edgeEndpoints, createdEdges, relationOverrides, deletedEdgeIds, persistLayoutNow])
+  }, [nodes, edgeHandles, edgeEndpoints, createdEdges, relationOverrides, deletedEdgeIds, collapsed, persistLayoutNow])
 
   // Flush de seguridad: si el usuario sale, recarga o cierra la pestaña antes del
   // debounce, persistimos el último estado visible del mapa.
@@ -668,6 +678,7 @@ function MapInner() {
         Object.entries(relationOverridesRef.current).map(([id, edge]) => [id, { ...edge }]),
       ),
       deletedEdgeIds: [...deletedEdgeIdsRef.current],
+      collapsedIds: [...collapsedRef.current],
     }
 
     const stack = undoStackRef.current
@@ -716,6 +727,9 @@ function MapInner() {
     const restoredDeleted = new Set(snapshot.deletedEdgeIds ?? [])
     deletedEdgeIdsRef.current = restoredDeleted
     setDeletedEdgeIds(restoredDeleted)
+    const restoredCollapsed = new Set(snapshot.collapsedIds ?? [])
+    collapsedRef.current = restoredCollapsed
+    setCollapsed(restoredCollapsed)
     requestAnimationFrame(() => {
       undoingRef.current = false
     })
