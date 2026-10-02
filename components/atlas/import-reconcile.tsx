@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DataEntry } from './data-entry'
+import { DocumentSources } from './document-sources'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ATLAS_NODES } from '@/lib/atlas-data'
 import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlasNodes } from '@/lib/atlas-local'
@@ -117,7 +118,7 @@ async function detectImportSource(file: File): Promise<DetectedFile> {
 
 export function ImportReconcile() {
   const atlasNodes = useAtlasNodes()
-  const [workspace, setWorkspace] = useState<'descubrir' | 'cargar'>('descubrir')
+  const [workspace, setWorkspace] = useState<'descubrir' | 'documentos' | 'cargar'>('descubrir')
   const [source, setSource] = useState<ImportSource | null>(null)
   const [scanned, setScanned] = useState(false)
   const [liveResult, setLiveResult] = useState<TechnicalReconcileResult | null>(null)
@@ -422,6 +423,17 @@ export function ImportReconcile() {
           Descubrir / Importar
         </button>
         <button
+          onClick={() => setWorkspace('documentos')}
+          className={cn(
+            'border-b-2 px-3 py-3 text-[13px] font-medium transition-colors',
+            workspace === 'documentos'
+              ? 'border-primary text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground',
+          )}
+        >
+          Documentos y fuentes
+        </button>
+        <button
           onClick={() => setWorkspace('cargar')}
           className={cn(
             'border-b-2 px-3 py-3 text-[13px] font-medium transition-colors',
@@ -434,6 +446,7 @@ export function ImportReconcile() {
         </button>
       </div>
 
+      {workspace === 'documentos' && <DocumentSources />}
       {workspace === 'cargar' && <DataEntry />}
 
       {/* selección de fuente */}
