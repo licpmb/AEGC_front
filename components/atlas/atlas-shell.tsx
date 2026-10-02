@@ -41,6 +41,7 @@ export function AtlasShell({ onLogout, microsoftSession }: { onLogout: () => voi
     environment: string | null
   } | null>(null)
   const [native, setNative] = useState<{ model: NativeModel; xml: string } | null>(null)
+  const [archiFocusLabel, setArchiFocusLabel] = useState<string | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   useEffect(() => {
     let cancelled = false
@@ -189,9 +190,24 @@ export function AtlasShell({ onLogout, microsoftSession }: { onLogout: () => voi
             <span>{native ? 'Mapa principal de relaciones. El modelo Archi está cargado; las relaciones reales se incorporan acá, no en una vista paralela.' : 'Este mapa contiene datos de demostración. Cargá tu .archimate para trabajar con el modelo real.'}</span>
             <Button variant="outline" size="sm" onClick={() => setView('archi')}>{native ? 'Abrir modelo Archi' : 'Cargar modelo Archi'}</Button>
           </div>
-          <div className="min-h-0 flex-1"><AtlasMap /></div>
+          <div className="min-h-0 flex-1">
+            <AtlasMap
+              onOpenArchi={(node) => {
+                setArchiFocusLabel(node.label)
+                setView('archi')
+              }}
+            />
+          </div>
         </div>}
-        {view === 'archi' && <NativeArchiWorkspace initialModel={native?.model} initialXml={native?.xml} onModelLoaded={acceptModel} />}
+        {view === 'archi' && (
+          <NativeArchiWorkspace
+            initialModel={native?.model}
+            initialXml={native?.xml}
+            onModelLoaded={acceptModel}
+            focusLabel={archiFocusLabel}
+            onFocusHandled={() => setArchiFocusLabel(null)}
+          />
+        )}
         {view === 'documentacion' && <DocCoverage />}
         {view === 'importar' && <ImportReconcile />}
         {view === 'roles' && <RolesAdmin />}
