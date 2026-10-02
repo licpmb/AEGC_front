@@ -31,7 +31,7 @@ import {
   type GitlabIssue,
 } from '@/lib/atlas-types'
 import { getDocCoverage, getDocCompleteness } from '@/lib/atlas-docs'
-import { KNOWLEDGE_EVENT, loadKnowledgeDocuments, type KnowledgeDocument } from '@/lib/document-knowledge'
+import { KNOWLEDGE_EVENT, loadKnowledgeDocuments, loadKnowledgeSources, type KnowledgeDocument, type KnowledgeSource } from '@/lib/document-knowledge'
 import { cn } from '@/lib/utils'
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -119,9 +119,13 @@ export function DetailPanel({
     }))
   const open = nodeIssues.filter((i) => i.state !== 'cerrado')
   const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeDocument[]>([])
+  const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([])
 
   useEffect(() => {
-    const sync = () => setKnowledgeDocuments(loadKnowledgeDocuments())
+    const sync = () => {
+      setKnowledgeDocuments(loadKnowledgeDocuments())
+      setKnowledgeSources(loadKnowledgeSources())
+    }
     sync()
     window.addEventListener(KNOWLEDGE_EVENT, sync)
     window.addEventListener('storage', sync)
@@ -133,6 +137,9 @@ export function DetailPanel({
 
   const linkedDocuments = knowledgeDocuments.filter((document) =>
     document.links.some((link) => link.nodeId === node.id && link.state === 'vinculado'),
+  )
+  const linkedSharePointSources = knowledgeSources.filter(
+    (source) => source.type === 'sharepoint' && source.nodeId === node.id,
   )
 
   return (
@@ -564,6 +571,42 @@ export function DetailPanel({
                 )
               })}
             </div>
+
+            {linkedSharePointSources.length > 0 && (
+              <div className="mt-3 rounded-md border border-border bg-card p-2.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Carpetas SharePoint vinculadas
+                  </span>
+                  <span className="font-mono text-[9px] text-muted-foreground">{linkedSharePointSources.length}</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {linkedSharePointSources.map((source) => (
+                    <div key={source.id} className="rounded border border-border/70 px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <FileText size={11} className="shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate text-[10.5px] font-medium">{source.name}</span>
+                        {source.webUrl && (
+                          <a
+                            href={source.webUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Abrir carpeta en SharePoint"
+                          >
+                            <ExternalLink size={11} />
+                          </a>
+                        )}
+                      </div>
+                      <p className="mt-1 truncate font-mono text-[8.5px] text-muted-foreground">
+                        {source.connectionStatus}
+                        {source.lastSyncAt ? ' · sync ' + new Date(source.lastSyncAt).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {linkedDocuments.length > 0 && (
               <div className="mt-3 rounded-md border border-border bg-card p-2.5">
