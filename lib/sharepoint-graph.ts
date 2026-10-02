@@ -1,6 +1,7 @@
 'use client'
 
 import type { AtlasNode } from './atlas-types'
+import { acquireGraphAccessToken } from './entra-auth'
 import {
   classifyDocument,
   extractDocumentText,
@@ -13,11 +14,6 @@ import {
   type KnowledgeDocument,
   type KnowledgeSource,
 } from './document-knowledge'
-
-export interface SharePointAuthConfig {
-  tenantId: string
-  clientId: string
-}
 
 export interface SharePointResolvedFolder {
   siteId: string
@@ -37,90 +33,6 @@ type GraphDriveItem = {
   file?: { mimeType?: string }
   folder?: { childCount?: number }
   parentReference?: { path?: string }
-}
-
-const AUTH_KEY = 'aegc:sharepoint-auth:v1'
-const GRAPH_SCOPES = ['User.Read', 'Files.Read.All', 'Sites.Read.All']
-
-function loadScript(src: string, marker: string): Promise<void> {
-  if (typeof window === 'undefined') return Promise.reject(new Error('Sólo disponible en navegador.'))
-  const w = window as unknown as Record<string, unknown>
-  if (w[marker]) return Promise.resolve()
-  return new Promise((resolve, reject) => {
-    const selector = 'script[data-aegc-lib="' + marker + '"]'
-    const existing = document.querySelector<HTMLScriptElement>(selector)
-    if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true })
-      existing.addEventListener('error', () => reject(new Error('No se pudo cargar ' + marker + '.')), { once: true })
-      return
-    }
-    const script = document.createElement('script')
-    script.src = src
-    script.async = true
-    script.dataset.aegcLib = marker
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('No se pudo cargar ' + marker + '.'))
-    document.head.appendChild(script)
-  })
-}
-
-export function loadSharePointAuthConfig(): SharePointAuthConfig | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(AUTH_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as SharePointAuthConfig
-    return parsed.tenantId && parsed.clientId ? parsed : null
-  } catch {
-    return null
-  }
-}
-
-export function saveSharePointAuthConfig(config: SharePointAuthConfig) {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(config))
-}
-
-async function acquireGraphToken(config: SharePointAuthConfig): Promise<string> {
-  await loadScript('https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.22.0/lib/msal-browser.min.js', 'msal')
-  const w = window as unknown as {
-    msal?: {
-      PublicClientApplication: new (config: unknown) => {
-        initialize: () => Promise<void>
-        getAllAccounts: () => Array<{ homeAccountId: string }>
-        acquireTokenSilent: (request: unknown) => Promise<{ accessToken: string }>
-        acquireTokenPopup: (request: unknown) => Promise<{ accessToken: string }>
-        loginPopup: (request: unknown) => Promise<{ account?: { homeAccountId: string } }>
-      }
-    }
-  }
-  if (!w.msal) throw new Error('Microsoft Authentication Library no quedó disponible.')
-
-  const app = new w.msal.PublicClientApplication({
-    auth: {
-      clientId: config.clientId,
-      authority: 'https://login.microsoftonline.com/' + config.tenantId,
-      redirectUri: window.location.origin,
-    },
-    cache: {
-      cacheLocation: 'sessionStorage',
-    },
-  })
-  await app.initialize()
-
-  let account = app.getAllAccounts()[0]
-  if (!account) {
-    const login = await app.loginPopup({ scopes: GRAPH_SCOPES })
-    account = login.account ?? app.getAllAccounts()[0]
-  }
-  if (!account) throw new Error('No se pudo obtener la cuenta de Microsoft.')
-
-  try {
-    const silent = await app.acquireTokenSilent({ scopes: GRAPH_SCOPES, account })
-    return silent.accessToken
-  } catch {
-    const interactive = await app.acquireTokenPopup({ scopes: GRAPH_SCOPES, account })
-    return interactive.accessToken
-  }
 }
 
 async function graphJson<T>(token: string, url: string): Promise<T> {
@@ -144,9 +56,8 @@ function normalizePath(value: string) {
 
 export async function resolveSharePointFolder(
   folderUrl: string,
-  config: SharePointAuthConfig,
 ): Promise<{ token: string; folder: SharePointResolvedFolder }> {
-  const token = await acquireGraphToken(config)
+  const token = await acquireGraphAccessToken()
   const parsed = new URL(folderUrl)
   const segments = parsed.pathname.split('/').filter(Boolean)
   const siteIndex = segments.findIndex((segment) => segment.toLowerCase() === 'sites' || segment.toLowerCase() === 'teams')
@@ -268,7 +179,6 @@ function mergeLinks(inherited: DocumentLink[], discovered: DocumentLink[]) {
 }
 
 export async function connectAndSyncSharePointFolder(args: {
-  config: SharePointAuthConfig
   folderUrl: string
   sourceName?: string
   nodeId: string
@@ -276,7 +186,7 @@ export async function connectAndSyncSharePointFolder(args: {
   nodes: AtlasNode[]
   existingSource?: KnowledgeSource
 }): Promise<{ source: KnowledgeSource; processed: number; skipped: number; failed: number }> {
-  const { token, folder } = await resolveSharePointFolder(args.folderUrl, args.config)
+  const { token, folder } = await resolveSharePointFolder(args.folderUrl)
   const source: KnowledgeSource = {
     id: args.existingSource?.id ?? newId('source'),
     type: 'sharepoint',
@@ -370,13 +280,11 @@ export async function connectAndSyncSharePointFolder(args: {
 
 export async function syncSharePointSource(
   source: KnowledgeSource,
-  config: SharePointAuthConfig,
   nodes: AtlasNode[],
 ) {
   if (!source.webUrl && !source.location) throw new Error('La fuente SharePoint no tiene URL.')
   if (!source.nodeId) throw new Error('La carpeta SharePoint no está relacionada con un nodo.')
   return connectAndSyncSharePointFolder({
-    config,
     folderUrl: source.webUrl ?? source.location!,
     sourceName: source.name,
     nodeId: source.nodeId,
