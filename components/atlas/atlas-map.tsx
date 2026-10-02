@@ -22,7 +22,6 @@ import {
 import '@xyflow/react/dist/style.css'
 import { AtlasFlowNode, type AtlasFlowNodeData } from './atlas-node'
 import { DetailPanel } from './detail-panel'
-import { ArchimateViewer } from './archimate-viewer'
 import { EndpointExplorer } from './endpoint-explorer'
 import { MapToolbar, type MapFilters } from './map-toolbar'
 import { ATLAS_EDGES, ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
@@ -224,14 +223,13 @@ type PersistedLayout = UndoSnapshot & {
 const LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v5'
 const PREVIOUS_LAYOUT_STORAGE_KEY = 'aegc:atlas-map:layout:v4'
 
-function MapInner() {
+function MapInner({ onOpenArchi }: { onOpenArchi?: (node: AtlasNode) => void }) {
   const atlasNodes = useAtlasNodes()
   const importedEdges = useImportedEdges()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [archimateFor, setArchimateFor] = useState<string | null>(null)
   const [endpointsView, setEndpointsView] = useState<{
     nodeId: string
     connectionToId?: string | null
@@ -1470,7 +1468,7 @@ function MapInner() {
           issues={ATLAS_ISSUES}
           onClose={() => setSelectedId(null)}
           onSelect={handleSelect}
-          onOpenArchimate={(id) => setArchimateFor(id)}
+          onOpenArchimate={() => onOpenArchi?.(selected)}
           onOpenEndpoints={(id) => setEndpointsView({ nodeId: id })}
           onEdit={(id) => setEditingId(id)}
           onEditRelation={editRelation}
@@ -1491,10 +1489,6 @@ function MapInner() {
         const node = atlasNodes.find((item) => item.id === editingId)
         return node ? <NodeEditor node={node} onClose={() => setEditingId(null)}/> : null
       })()}
-
-      {archimateFor && (
-        <ArchimateViewer nodeId={archimateFor} onClose={() => setArchimateFor(null)} />
-      )}
 
       {endpointsView && (
         <EndpointExplorer
@@ -1543,10 +1537,10 @@ function MapLegend() {
   )
 }
 
-export function AtlasMap() {
+export function AtlasMap({ onOpenArchi }: { onOpenArchi?: (node: AtlasNode) => void }) {
   return (
     <ReactFlowProvider>
-      <MapInner />
+      <MapInner onOpenArchi={onOpenArchi} />
     </ReactFlowProvider>
   )
 }
