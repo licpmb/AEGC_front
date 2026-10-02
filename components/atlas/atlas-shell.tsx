@@ -209,7 +209,15 @@ export function AtlasShell({ onLogout, microsoftSession }: { onLogout: () => voi
           />
         )}
         {view === 'documentacion' && <DocCoverage />}
-        {view === 'importar' && <ImportReconcile />}
+        {view === 'importar' && (
+          <ImportReconcile
+            onArchiImported={(model, xml) => {
+              acceptModel(model, xml)
+              setArchiFocusLabel(null)
+              setView('archi')
+            }}
+          />
+        )}
         {view === 'roles' && <RolesAdmin />}
       </div>
     </div>
