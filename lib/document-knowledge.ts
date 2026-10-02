@@ -13,7 +13,15 @@ export interface KnowledgeSource {
   location?: string
   createdAt: string
   lastSyncAt?: string
-  connectionStatus: 'local' | 'pendiente_auth' | 'conectado'
+  connectionStatus: 'local' | 'pendiente_auth' | 'conectado' | 'error'
+  /** Nodo/integración dueño de la fuente. Los documentos heredan este vínculo. */
+  nodeId?: string
+  recursive?: boolean
+  siteId?: string
+  driveId?: string
+  folderItemId?: string
+  webUrl?: string
+  lastError?: string
 }
 
 export interface DocumentLink {
@@ -36,6 +44,10 @@ export interface KnowledgeDocument {
   modifiedAt?: number
   text: string
   error?: string
+  /** Identidad del documento en el origen externo (SharePoint driveItem.id). */
+  externalId?: string
+  etag?: string
+  webUrl?: string
   links: DocumentLink[]
 }
 
