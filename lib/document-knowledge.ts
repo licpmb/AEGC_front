@@ -313,6 +313,73 @@ export function matchDocumentToNodes(text: string, fileName: string, nodes: Atla
   return links.sort((a, b) => b.confidence - a.confidence).slice(0, 12)
 }
 
+
+export async function ingestKnowledgeFiles(
+  files: File[],
+  nodes: AtlasNode[],
+  sourceType: DocumentSourceType = 'upload',
+): Promise<{ source: KnowledgeSource; documents: KnowledgeDocument[] }> {
+  if (!files.length) throw new Error('No hay archivos para procesar.')
+
+  const firstPath = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath
+  const folderName = firstPath ? firstPath.split('/')[0] : null
+  const source: KnowledgeSource = {
+    id: newId('source'),
+    type: sourceType,
+    name: folderName || (files.length === 1 ? files[0].name : 'Carga manual · ' + files.length + ' archivos'),
+    location: folderName || undefined,
+    createdAt: new Date().toISOString(),
+    lastSyncAt: new Date().toISOString(),
+    connectionStatus: 'local',
+  }
+  saveKnowledgeSource(source)
+
+  const processed: KnowledgeDocument[] = []
+  for (const file of files) {
+    const documentId = newId('doc')
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || undefined
+    const initial: KnowledgeDocument = {
+      id: documentId,
+      sourceId: source.id,
+      name: file.name,
+      relativePath,
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size,
+      kind: classifyDocument(file),
+      status: 'procesando',
+      modifiedAt: file.lastModified,
+      text: '',
+      links: [],
+    }
+    saveKnowledgeDocument(initial)
+
+    try {
+      const result = await extractDocumentText(file)
+      const extracted = result.text.slice(0, 120000)
+      const document: KnowledgeDocument = {
+        ...initial,
+        status: result.partial ? 'parcial' : 'procesado',
+        text: extracted,
+        processedAt: new Date().toISOString(),
+        links: matchDocumentToNodes(extracted, file.name, nodes),
+      }
+      saveKnowledgeDocument(document)
+      processed.push(document)
+    } catch (error) {
+      const document: KnowledgeDocument = {
+        ...initial,
+        status: 'error',
+        processedAt: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Error procesando el archivo.',
+      }
+      saveKnowledgeDocument(document)
+      processed.push(document)
+    }
+  }
+
+  return { source, documents: processed }
+}
+
 export function newId(prefix: string) {
   return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)
 }
