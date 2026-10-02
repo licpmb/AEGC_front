@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import {
   X,
   GitBranch,
@@ -30,6 +31,7 @@ import {
   type GitlabIssue,
 } from '@/lib/atlas-types'
 import { getDocCoverage, getDocCompleteness } from '@/lib/atlas-docs'
+import { KNOWLEDGE_EVENT, loadKnowledgeDocuments, type KnowledgeDocument } from '@/lib/document-knowledge'
 import { cn } from '@/lib/utils'
 
 const SEVERITY_COLOR: Record<string, string> = {
@@ -116,6 +118,22 @@ export function DetailPanel({
       viaLabel: i.nodeId === node.id ? null : (byId.get(i.nodeId)?.label ?? null),
     }))
   const open = nodeIssues.filter((i) => i.state !== 'cerrado')
+  const [knowledgeDocuments, setKnowledgeDocuments] = useState<KnowledgeDocument[]>([])
+
+  useEffect(() => {
+    const sync = () => setKnowledgeDocuments(loadKnowledgeDocuments())
+    sync()
+    window.addEventListener(KNOWLEDGE_EVENT, sync)
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(KNOWLEDGE_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
+
+  const linkedDocuments = knowledgeDocuments.filter((document) =>
+    document.links.some((link) => link.nodeId === node.id && link.state === 'vinculado'),
+  )
 
   return (
     <aside className="flex h-full w-[400px] shrink-0 flex-col border-l border-border bg-sidebar">
@@ -546,6 +564,40 @@ export function DetailPanel({
                 )
               })}
             </div>
+
+            {linkedDocuments.length > 0 && (
+              <div className="mt-3 rounded-md border border-border bg-card p-2.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Documentos vinculados
+                  </span>
+                  <span className="font-mono text-[9px] text-muted-foreground">{linkedDocuments.length}</span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {linkedDocuments.map((document) => {
+                    const link = document.links.find((item) => item.nodeId === node.id && item.state === 'vinculado')
+                    return (
+                      <div key={document.id} className="rounded border border-border/70 px-2 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <FileText size={11} className="shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1 truncate text-[10.5px] font-medium">{document.name}</span>
+                          {link && (
+                            <span className="font-mono text-[8.5px] text-muted-foreground">
+                              {Math.round(link.confidence * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        {link?.evidence?.length ? (
+                          <p className="mt-1 truncate font-mono text-[8.5px] text-muted-foreground">
+                            evidencia: {link.evidence.join(' · ')}
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
