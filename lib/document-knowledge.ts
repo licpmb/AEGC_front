@@ -321,7 +321,8 @@ export async function ingestKnowledgeFiles(
 ): Promise<{ source: KnowledgeSource; documents: KnowledgeDocument[] }> {
   if (!files.length) throw new Error('No hay archivos para procesar.')
 
-  const firstPath = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath
+  const firstPath = (files[0] as File & { webkitRelativePath?: string; aegcRelativePath?: string }).aegcRelativePath
+    || (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath
   const folderName = firstPath ? firstPath.split('/')[0] : null
   const source: KnowledgeSource = {
     id: newId('source'),
@@ -337,7 +338,9 @@ export async function ingestKnowledgeFiles(
   const processed: KnowledgeDocument[] = []
   for (const file of files) {
     const documentId = newId('doc')
-    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || undefined
+    const relativePath = (file as File & { webkitRelativePath?: string; aegcRelativePath?: string }).aegcRelativePath
+      || (file as File & { webkitRelativePath?: string }).webkitRelativePath
+      || undefined
     const initial: KnowledgeDocument = {
       id: documentId,
       sourceId: source.id,
