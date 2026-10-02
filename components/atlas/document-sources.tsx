@@ -38,7 +38,8 @@ import {
   type KnowledgeSource,
 } from '@/lib/document-knowledge'
 import { cn } from '@/lib/utils'
-import { connectAndSyncSharePointFolder, loadSharePointAuthConfig, saveSharePointAuthConfig, syncSharePointSource } from '@/lib/sharepoint-graph'
+import { connectAndSyncSharePointFolder, syncSharePointSource } from '@/lib/sharepoint-graph'
+import { getMicrosoftSession } from '@/lib/entra-auth'
 
 const MAX_STORED_TEXT = 120000
 
@@ -73,8 +74,7 @@ export function DocumentSources() {
   const [sharePointName, setSharePointName] = useState('')
   const [sharePointNodeId, setSharePointNodeId] = useState('')
   const [sharePointRecursive, setSharePointRecursive] = useState(true)
-  const [tenantId, setTenantId] = useState('')
-  const [clientId, setClientId] = useState('')
+  const [microsoftUser, setMicrosoftUser] = useState<string | null>(null)
   const [sharePointStatus, setSharePointStatus] = useState<string | null>(null)
   const [showSharePoint, setShowSharePoint] = useState(false)
 
@@ -95,11 +95,7 @@ export function DocumentSources() {
   useEffect(() => {
     folderRef.current?.setAttribute('webkitdirectory', '')
     folderRef.current?.setAttribute('directory', '')
-    const auth = loadSharePointAuthConfig()
-    if (auth) {
-      setTenantId(auth.tenantId)
-      setClientId(auth.clientId)
-    }
+    void getMicrosoftSession().then((session) => setMicrosoftUser(session?.name ?? session?.username ?? null))
   }, [])
 
   const visibleDocuments = useMemo(() => {
@@ -178,17 +174,12 @@ export function DocumentSources() {
 
   async function connectSharePoint() {
     const url = sharePointUrl.trim()
-    const tenant = tenantId.trim()
-    const client = clientId.trim()
-    if (!url || !tenant || !client || !sharePointNodeId) return
+    if (!url || !sharePointNodeId) return
 
     setProcessing('sharepoint')
     setSharePointStatus('Autenticando con Microsoft y leyendo la carpeta…')
     try {
-      const config = { tenantId: tenant, clientId: client }
-      saveSharePointAuthConfig(config)
       const result = await connectAndSyncSharePointFolder({
-        config,
         folderUrl: url,
         sourceName: sharePointName,
         nodeId: sharePointNodeId,
@@ -210,16 +201,16 @@ export function DocumentSources() {
   }
 
   async function syncSource(source: KnowledgeSource) {
-    const auth = loadSharePointAuthConfig()
-    if (!auth) {
-      setSharePointStatus('Falta configurar Tenant ID y Client ID de Microsoft Entra.')
+    const session = await getMicrosoftSession()
+    if (!session) {
+      setSharePointStatus('No hay una sesión Microsoft activa. Cerrá la sesión local e ingresá con “Continuar con Microsoft Entra ID”.')
       setShowSharePoint(true)
       return
     }
     setProcessing(source.id)
     setSharePointStatus('Sincronizando ' + source.name + '…')
     try {
-      const result = await syncSharePointSource(source, auth, atlasNodes)
+      const result = await syncSharePointSource(source, atlasNodes)
       setSharePointStatus(
         source.name + ': ' + result.processed + ' procesados · ' + result.skipped + ' sin cambios/omitidos · ' + result.failed + ' errores.',
       )
@@ -300,23 +291,11 @@ export function DocumentSources() {
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <div>
-                <Label className="text-[11px]">Tenant ID o dominio Entra</Label>
-                <Input
-                  value={tenantId}
-                  onChange={(event) => setTenantId(event.target.value)}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx o empresa.onmicrosoft.com"
-                  className="mt-1 h-9 text-[12px]"
-                />
-              </div>
-              <div>
-                <Label className="text-[11px]">Client ID de la App Registration</Label>
-                <Input
-                  value={clientId}
-                  onChange={(event) => setClientId(event.target.value)}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  className="mt-1 h-9 text-[12px]"
-                />
+              <div className="lg:col-span-2 rounded-md border border-border bg-background px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Cuenta Microsoft activa</p>
+                <p className="mt-1 text-[12px] font-medium">
+                  {microsoftUser ?? 'Sin sesión Microsoft. Ingresá a AEGC con Microsoft Entra ID para usar SharePoint.'}
+                </p>
               </div>
               <div>
                 <Label className="text-[11px]">Nombre visible</Label>
@@ -364,7 +343,7 @@ export function DocumentSources() {
                 size="sm"
                 className="gap-1.5"
                 onClick={() => void connectSharePoint()}
-                disabled={!sharePointUrl.trim() || !tenantId.trim() || !clientId.trim() || !sharePointNodeId || processing === 'sharepoint'}
+                disabled={!sharePointUrl.trim() || !sharePointNodeId || !microsoftUser || processing === 'sharepoint'}
               >
                 {processing === 'sharepoint' ? <LoaderCircle size={13} className="animate-spin" /> : <Share2 size={13} />}
                 Conectar y sincronizar
@@ -378,7 +357,7 @@ export function DocumentSources() {
             )}
 
             <p className="mt-3 text-[10.5px] text-muted-foreground">
-              La App Registration debe permitir el redirect URI de esta web y permisos delegados Microsoft Graph para leer sitios/archivos. No se guarda el access token.
+              SharePoint usa la misma identidad con la que ingresaste a AEGC. La configuración de Entra pertenece a la aplicación y no se solicita al usuario. No se guarda el access token.
             </p>
           </div>
         )}
