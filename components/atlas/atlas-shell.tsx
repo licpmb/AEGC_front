@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { ATLAS_ISSUES, ATLAS_NODES } from '@/lib/atlas-data'
 import { cn } from '@/lib/utils'
 import { parseNativeArchi, type NativeModel } from '@/lib/native-archi'
+import type { MicrosoftSession } from '@/lib/entra-auth'
 
 const VIEWS = [
   { key: 'mapa', label: 'Mapa', icon: MapIcon },
@@ -31,7 +32,7 @@ const VIEWS = [
   { key: 'roles', label: 'Roles y accesos', icon: ShieldCheck },
 ] as const
 
-export function AtlasShell({ onLogout }: { onLogout: () => void }) {
+export function AtlasShell({ onLogout, microsoftSession }: { onLogout: () => void; microsoftSession: MicrosoftSession | null }) {
   const [view, setView] = useState<(typeof VIEWS)[number]['key']>('mapa')
   const [buildInfo, setBuildInfo] = useState<{
     deploymentId: string | null
@@ -173,7 +174,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
               >
                 Admin
               </span>
-              Usuario de demostración
+              {microsoftSession?.name ?? microsoftSession?.username ?? 'Acceso local'}
             </span>
             <Button variant="ghost" size="icon" onClick={onLogout} aria-label="Salir">
               <LogOut size={15} />
