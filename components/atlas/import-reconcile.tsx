@@ -21,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ATLAS_NODES } from '@/lib/atlas-data'
 import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlasNodes } from '@/lib/atlas-local'
 import { parseAppSettings, parsePostman, type TechnicalReconcileResult } from '@/lib/technical-import'
-import { ingestKnowledgeFiles } from '@/lib/document-knowledge'
+import { ingestKnowledgeFiles, type KnowledgeDocument } from '@/lib/document-knowledge'
 import {
   RECONCILE_META,
   type ImportSource,
@@ -59,6 +59,63 @@ type DetectedFile = {
   name: string
   source: ImportSource | 'documento' | 'desconocido'
   label: string
+}
+
+
+type DroppedEntry = {
+  isFile: boolean
+  isDirectory: boolean
+  name: string
+  file?: (success: (file: File) => void, error?: (error: DOMException) => void) => void
+  createReader?: () => {
+    readEntries: (success: (entries: DroppedEntry[]) => void, error?: (error: DOMException) => void) => void
+  }
+}
+
+async function readDirectoryEntries(entry: DroppedEntry, parentPath = ''): Promise<File[]> {
+  if (entry.isFile && entry.file) {
+    return new Promise((resolve, reject) => {
+      entry.file!(
+        (file) => {
+          const relativePath = parentPath ? parentPath + '/' + file.name : file.name
+          try { Object.defineProperty(file, 'aegcRelativePath', { value: relativePath, configurable: true }) } catch {}
+          resolve([file])
+        },
+        reject,
+      )
+    })
+  }
+
+  if (entry.isDirectory && entry.createReader) {
+    const reader = entry.createReader()
+    const children: DroppedEntry[] = []
+    while (true) {
+      const batch = await new Promise<DroppedEntry[]>((resolve, reject) => reader.readEntries(resolve, reject))
+      if (!batch.length) break
+      children.push(...batch)
+    }
+    const currentPath = parentPath ? parentPath + '/' + entry.name : entry.name
+    const nested = await Promise.all(children.map((child) => readDirectoryEntries(child, currentPath)))
+    return nested.flat()
+  }
+
+  return []
+}
+
+async function filesFromDrop(dataTransfer: DataTransfer): Promise<{ files: File[]; hasFolder: boolean }> {
+  const items = Array.from(dataTransfer.items ?? [])
+  const entries = items
+    .map((item) => {
+      const candidate = item as DataTransferItem & { webkitGetAsEntry?: () => DroppedEntry | null }
+      return candidate.webkitGetAsEntry?.() ?? null
+    })
+    .filter((entry): entry is DroppedEntry => Boolean(entry))
+
+  if (!entries.length) return { files: Array.from(dataTransfer.files), hasFolder: false }
+
+  const hasFolder = entries.some((entry) => entry.isDirectory)
+  const nested = await Promise.all(entries.map((entry) => readDirectoryEntries(entry)))
+  return { files: nested.flat(), hasFolder }
 }
 
 async function detectImportSource(file: File): Promise<DetectedFile> {
@@ -116,6 +173,7 @@ export function ImportReconcile() {
   const [actions, setActions] = useState<Record<string, 'aplicar' | 'omitir'>>({})
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [applySummary, setApplySummary] = useState<{ nodes: number; relations: number; enriched: number } | null>(null)
+  const [documentImport, setDocumentImport] = useState<{ sourceName: string; documents: KnowledgeDocument[] } | null>(null)
 
   const result = liveResult
 
@@ -188,7 +246,7 @@ export function ImportReconcile() {
   }
 
 
-  async function loadDroppedFiles(files: File[]) {
+  async function loadDroppedFiles(files: File[], fromFolder = false) {
     if (!files.length) return
     setError(null)
     setScanned(false)
@@ -200,7 +258,8 @@ export function ImportReconcile() {
     const documentFiles = files.filter((_, index) => detected[index]?.source === 'documento')
 
     if (documentFiles.length) {
-      await ingestKnowledgeFiles(documentFiles, atlasNodes, 'upload')
+      const ingested = await ingestKnowledgeFiles(documentFiles, atlasNodes, fromFolder ? 'folder' : 'upload')
+      setDocumentImport({ sourceName: ingested.source.name, documents: ingested.documents })
     }
 
     if (!supported.length) {
@@ -217,7 +276,7 @@ export function ImportReconcile() {
       }
 
       if (documentFiles.length) {
-        setWorkspace('documentos')
+        setSource(null)
         setScanned(true)
         return
       }
@@ -336,6 +395,7 @@ export function ImportReconcile() {
     setActions({})
     setMappings({})
     setApplySummary(null)
+    setDocumentImport(null)
   }
 
   const toApply = Object.values(actions).filter((a) => a === 'aplicar').length
@@ -402,7 +462,7 @@ export function ImportReconcile() {
             Una sola entrada para descubrir arquitectura desde archivos o cargar/editar datos manualmente.
           </p>
         </div>
-        {workspace === 'descubrir' && source && (
+        {workspace === 'descubrir' && (source || documentImport) && (
           <Button variant="ghost" size="sm" onClick={reset} className="gap-1.5">
             <RotateCcw size={13} />
             Otra fuente
@@ -468,7 +528,10 @@ export function ImportReconcile() {
           onDrop={(e) => {
             e.preventDefault()
             setDragging(false)
-            void loadDroppedFiles(Array.from(e.dataTransfer.files))
+            void (async () => {
+              const dropped = await filesFromDrop(e.dataTransfer)
+              await loadDroppedFiles(dropped.files, dropped.hasFolder)
+            })()
           }}
         >
           <input
@@ -490,8 +553,8 @@ export function ImportReconcile() {
                 <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-secondary">
                   <Files size={27} />
                 </span>
-                <p className="text-[16px] font-semibold">Soltá los archivos en cualquier lugar</p>
-                <p className="text-[12px] text-muted-foreground">AEGC identifica automáticamente el tipo de artefacto.</p>
+                <p className="text-[16px] font-semibold">Soltá archivos o una carpeta completa</p>
+                <p className="text-[12px] text-muted-foreground">AEGC recorre subcarpetas e identifica automáticamente cada artefacto.</p>
               </div>
             </div>
           )}
@@ -505,10 +568,9 @@ export function ImportReconcile() {
               <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-secondary">
                 <Files size={23} />
               </span>
-              <p className="text-[15px] font-semibold">Toda esta área acepta archivos</p>
+              <p className="text-[15px] font-semibold">Arrastrá archivos o carpetas completas</p>
               <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted-foreground">
-                Arrastrá y soltá en cualquier punto dentro del borde punteado. AEGC identifica automáticamente
-                AppSettings, Postman, OpenAPI, ArchiMate o documentación. También podés hacer clic acá para elegir archivos.
+                Soltá una carpeta y AEGC recorre sus subcarpetas y procesa los archivos compatibles. También podés soltar archivos individuales o hacer clic para elegirlos.
               </p>
             </button>
 
@@ -540,6 +602,57 @@ export function ImportReconcile() {
               Subí el archivo sin elegir su tipo. AEGC lo detecta y lo envía al parser correspondiente.
             </p>
           </div>
+        </div>
+      )}
+
+      {workspace === 'descubrir' && documentImport && !source && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/40 px-6 py-3">
+            <div>
+              <p className="text-[13px] font-semibold">{documentImport.sourceName}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {documentImport.documents.length} documento{documentImport.documents.length === 1 ? '' : 's'} procesado{documentImport.documents.length === 1 ? '' : 's'} sin salir de Importar.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setDocumentImport(null)}>
+              Agregar más
+            </Button>
+          </div>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-2 p-6">
+              {documentImport.documents.map((doc) => {
+                const linked = doc.links.filter((link) => link.state === 'vinculado')
+                const suggested = doc.links.filter((link) => link.state === 'sugerido')
+                return (
+                  <div key={doc.id} className="rounded-lg border border-border bg-card px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{doc.relativePath || doc.name}</span>
+                      <span className="font-mono text-[9.5px] uppercase text-muted-foreground">{doc.status}</span>
+                    </div>
+                    {doc.error ? (
+                      <p className="mt-2 text-[11px] text-destructive">{doc.error}</p>
+                    ) : (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {linked.map((link) => (
+                          <span key={link.nodeId} className="rounded-md border border-border bg-secondary px-2 py-1 text-[10.5px]">
+                            ✓ {nodeLabel(link.nodeId)} · {Math.round(link.confidence * 100)}%
+                          </span>
+                        ))}
+                        {suggested.map((link) => (
+                          <span key={link.nodeId} className="rounded-md border border-dashed border-border px-2 py-1 text-[10.5px] text-muted-foreground">
+                            ? {nodeLabel(link.nodeId)} · {Math.round(link.confidence * 100)}%
+                          </span>
+                        ))}
+                        {!linked.length && !suggested.length && (
+                          <span className="text-[11px] text-muted-foreground">Sin coincidencias con el Atlas.</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </ScrollArea>
         </div>
       )}
 
