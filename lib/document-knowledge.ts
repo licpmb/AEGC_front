@@ -127,7 +127,11 @@ async function extractPdf(file: File): Promise<string> {
     GlobalWorkerOptions?: { workerSrc: string }
     getDocument: (input: { data: ArrayBuffer }) => { promise: Promise<{
       numPages: number
-      getPage: (page: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str?: string }> }> }>
+      getPage: (page: number) => Promise<{
+        getTextContent: () => Promise<{ items: Array<{ str?: string }> }>
+        getViewport: (input: { scale: number }) => { width: number; height: number }
+        render: (input: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> }
+      }>
     }> }
   } }
   if (!w.pdfjsLib) throw new Error('PDF.js no quedó disponible.')
@@ -141,7 +145,30 @@ async function extractPdf(file: File): Promise<string> {
     const text = await page.getTextContent()
     chunks.push(text.items.map((item) => item.str ?? '').join(' '))
   }
-  return chunks.join('\n\n')
+  const extracted = chunks.join('\n\n')
+  if (extracted.replace(/\s+/g, '').length >= 20) return extracted
+
+  await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'Tesseract')
+  const ocrWindow = window as unknown as {
+    Tesseract?: { recognize: (image: HTMLCanvasElement, lang: string) => Promise<{ data: { text: string } }> }
+  }
+  if (!ocrWindow.Tesseract) return extracted
+
+  const ocrPages: string[] = []
+  const maxPages = Math.min(pdf.numPages, 25)
+  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber)
+    const viewport = page.getViewport({ scale: 1.5 })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(viewport.width)
+    canvas.height = Math.ceil(viewport.height)
+    const context = canvas.getContext('2d')
+    if (!context) continue
+    await page.render({ canvasContext: context, viewport }).promise
+    const result = await ocrWindow.Tesseract.recognize(canvas, 'spa+eng')
+    ocrPages.push(result.data.text)
+  }
+  return ocrPages.join('\n\n')
 }
 
 async function extractDocx(file: File): Promise<string> {
