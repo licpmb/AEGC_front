@@ -249,62 +249,6 @@ const OPENAPI_RESULT: ReconcileResult = {
   ],
 }
 
-const SHAREPOINT_RESULT: ReconcileResult = {
-  source: 'sharepoint',
-  fileName: 'Proceso_Pedidos_GCC_v3.docx',
-  scannedAt: 'recién',
-  items: [
-    {
-      id: 'sp-1',
-      entity: 'documento',
-      label: 'Proceso de alta de pedidos (funcional)',
-      status: 'modificado',
-      matchedAtlasId: 'gcc',
-      matchReason: 'El documento describe el flujo de GCC → CPI → SAP.',
-      confidence: 0.92,
-      aiSummary:
-        'Alta de pedidos desde GCC: el vendedor carga el pedido, GCC valida crédito contra SQL, envía POST a CPI y CPI mapea a la OData A_SalesOrder de SAP. Incluye reglas de bonificación y notas de crédito.',
-      changes: [
-        {
-          field: 'description',
-          before: 'Interfaz comercial de la compañía. Extrae datos desde SQL e inyecta transacciones hacia SAP vía CPI.',
-          after:
-            'Interfaz comercial de la compañía. Valida crédito contra SQL, arma el pedido y lo inyecta a SAP vía CPI (A_SalesOrder), soportando pedidos de venta, notas de crédito y bonificaciones.',
-        },
-      ],
-      defaultAction: 'aplicar',
-    },
-    {
-      id: 'sp-2',
-      entity: 'documento',
-      label: 'Instructivo de conciliación de cobranzas',
-      status: 'modificado',
-      matchedAtlasId: 'web-cobranzas',
-      matchReason: 'El documento menciona explícitamente "Web de Cobranzas".',
-      confidence: 0.88,
-      aiSummary:
-        'Conciliación diaria de cobranzas: la Web de Cobranzas toma pagos, los concilia contra documentos abiertos de SAP FI y actualiza el estado del cliente.',
-      changes: [
-        { field: 'owner', before: 'Equipo GCC', after: 'Equipo Finanzas · Cobranzas' },
-      ],
-      defaultAction: 'aplicar',
-    },
-    {
-      id: 'sp-3',
-      entity: 'documento',
-      label: 'Manual de despliegue (genérico, sin dueño claro)',
-      status: 'ambiguo',
-      matchReason: 'Describe un pipeline pero no nombra la interfaz. No se pudo asociar.',
-      confidence: 0.25,
-      aiSummary:
-        'Procedimiento de despliegue con GitLab CI hacia ambientes prod/staging. No identifica a qué desarrollo pertenece.',
-      defaultAction: 'revisar',
-    },
-  ],
-}
-
 export const RECONCILE_RESULTS: Partial<Record<ImportSource, ReconcileResult>> = {
-  archimate: ARCHIMATE_RESULT,
-  openapi: OPENAPI_RESULT,
-  sharepoint: SHAREPOINT_RESULT,
+  // Los resultados reales se generan por parsers. No mantener datasets demo en runtime.
 }
