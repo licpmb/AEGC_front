@@ -155,6 +155,22 @@ async function extractDocx(file: File): Promise<string> {
   return result.value
 }
 
+async function extractSpreadsheet(file: File): Promise<string> {
+  await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX')
+  const w = window as unknown as {
+    XLSX?: {
+      read: (data: ArrayBuffer, options: { type: string }) => { SheetNames: string[]; Sheets: Record<string, unknown> }
+      utils: { sheet_to_csv: (sheet: unknown) => string }
+    }
+  }
+  if (!w.XLSX) throw new Error('SheetJS no quedó disponible.')
+  const workbook = w.XLSX.read(await file.arrayBuffer(), { type: 'array' })
+  return workbook.SheetNames.map((name) => {
+    const sheet = workbook.Sheets[name]
+    return '### ' + name + '\n' + w.XLSX!.utils.sheet_to_csv(sheet)
+  }).join('\n\n')
+}
+
 async function extractImage(file: File): Promise<string> {
   await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'Tesseract')
   const w = window as unknown as {
@@ -170,14 +186,8 @@ export async function extractDocumentText(file: File): Promise<{ text: string; p
   if (kind === 'pdf') return { text: await extractPdf(file) }
   if (kind === 'word') return { text: await extractDocx(file) }
   if (kind === 'image') return { text: await extractImage(file) }
+  if (kind === 'spreadsheet') return { text: await extractSpreadsheet(file) }
   if (kind === 'text') return { text: await file.text() }
-
-  if (kind === 'spreadsheet') {
-    return {
-      text: file.name + '\n' + file.type + '\nArchivo de planilla detectado. El contenido tabular todavía requiere parser XLSX dedicado.',
-      partial: true,
-    }
-  }
 
   return { text: file.name + '\n' + file.type, partial: true }
 }
