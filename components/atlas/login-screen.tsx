@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { MicrosoftSession } from '@/lib/entra-auth'
 import { Lock, Mail } from 'lucide-react'
 import { Brand } from './brand'
 import { Button } from '@/components/ui/button'
@@ -19,9 +20,11 @@ function MicrosoftMark() {
   )
 }
 
-export function LoginScreen({ onLogin }: { onLogin: () => void }) {
+export function LoginScreen({ onMicrosoftLogin, onLocalLogin }: { onMicrosoftLogin: () => Promise<MicrosoftSession>; onLocalLogin: () => void }) {
   const [email, setEmail] = useState('')
   const [pass, setPass] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10">
@@ -75,7 +78,14 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
           <Button
             variant="outline"
             className="h-11 w-full justify-center gap-2.5 text-[13.5px]"
-            onClick={onLogin}
+            disabled={loggingIn}
+            onClick={() => {
+              setLoginError(null)
+              setLoggingIn(true)
+              void onMicrosoftLogin()
+                .catch((error) => setLoginError(error instanceof Error ? error.message : 'No se pudo iniciar sesión con Microsoft.'))
+                .finally(() => setLoggingIn(false))
+            }}
           >
             <MicrosoftMark />
             Continuar con Microsoft Entra ID
@@ -93,7 +103,7 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
             className="flex flex-col gap-3.5"
             onSubmit={(e) => {
               e.preventDefault()
-              onLogin()
+              onLocalLogin()
             }}
           >
             <div className="flex flex-col gap-1.5">
@@ -139,8 +149,13 @@ export function LoginScreen({ onLogin }: { onLogin: () => void }) {
             </Button>
           </form>
 
+          {loginError && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] text-destructive">
+              {loginError}
+            </p>
+          )}
           <p className="text-center font-mono text-[10.5px] text-muted-foreground">
-            Prototipo de diseño · sin autenticación real
+            Microsoft Entra usa sesión real cuando la App Registration está configurada. El acceso local sigue siendo de desarrollo.
           </p>
         </div>
       </div>
