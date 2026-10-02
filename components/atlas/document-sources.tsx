@@ -38,6 +38,7 @@ import {
   type KnowledgeSource,
 } from '@/lib/document-knowledge'
 import { cn } from '@/lib/utils'
+import { connectAndSyncSharePointFolder, loadSharePointAuthConfig, saveSharePointAuthConfig, syncSharePointSource } from '@/lib/sharepoint-graph'
 
 const MAX_STORED_TEXT = 120000
 
@@ -70,6 +71,11 @@ export function DocumentSources() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [sharePointUrl, setSharePointUrl] = useState('')
   const [sharePointName, setSharePointName] = useState('')
+  const [sharePointNodeId, setSharePointNodeId] = useState('')
+  const [sharePointRecursive, setSharePointRecursive] = useState(true)
+  const [tenantId, setTenantId] = useState('')
+  const [clientId, setClientId] = useState('')
+  const [sharePointStatus, setSharePointStatus] = useState<string | null>(null)
   const [showSharePoint, setShowSharePoint] = useState(false)
 
   useEffect(() => {
@@ -89,6 +95,11 @@ export function DocumentSources() {
   useEffect(() => {
     folderRef.current?.setAttribute('webkitdirectory', '')
     folderRef.current?.setAttribute('directory', '')
+    const auth = loadSharePointAuthConfig()
+    if (auth) {
+      setTenantId(auth.tenantId)
+      setClientId(auth.clientId)
+    }
   }, [])
 
   const visibleDocuments = useMemo(() => {
@@ -165,20 +176,58 @@ export function DocumentSources() {
     setProcessing(null)
   }
 
-  function registerSharePoint() {
+  async function connectSharePoint() {
     const url = sharePointUrl.trim()
-    if (!url) return
-    saveKnowledgeSource({
-      id: newId('source'),
-      type: 'sharepoint',
-      name: sharePointName.trim() || 'SharePoint',
-      location: url,
-      createdAt: new Date().toISOString(),
-      connectionStatus: 'pendiente_auth',
-    })
-    setSharePointUrl('')
-    setSharePointName('')
-    setShowSharePoint(false)
+    const tenant = tenantId.trim()
+    const client = clientId.trim()
+    if (!url || !tenant || !client || !sharePointNodeId) return
+
+    setProcessing('sharepoint')
+    setSharePointStatus('Autenticando con Microsoft y leyendo la carpeta…')
+    try {
+      const config = { tenantId: tenant, clientId: client }
+      saveSharePointAuthConfig(config)
+      const result = await connectAndSyncSharePointFolder({
+        config,
+        folderUrl: url,
+        sourceName: sharePointName,
+        nodeId: sharePointNodeId,
+        recursive: sharePointRecursive,
+        nodes: atlasNodes,
+      })
+      setSelectedSourceId(result.source.id)
+      setSharePointStatus(
+        'Conectado. ' + result.processed + ' procesados · ' + result.skipped + ' sin cambios/omitidos · ' + result.failed + ' errores.',
+      )
+      setSharePointUrl('')
+      setSharePointName('')
+      setSharePointNodeId('')
+    } catch (error) {
+      setSharePointStatus(error instanceof Error ? error.message : 'No se pudo conectar SharePoint.')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  async function syncSource(source: KnowledgeSource) {
+    const auth = loadSharePointAuthConfig()
+    if (!auth) {
+      setSharePointStatus('Falta configurar Tenant ID y Client ID de Microsoft Entra.')
+      setShowSharePoint(true)
+      return
+    }
+    setProcessing(source.id)
+    setSharePointStatus('Sincronizando ' + source.name + '…')
+    try {
+      const result = await syncSharePointSource(source, auth, atlasNodes)
+      setSharePointStatus(
+        source.name + ': ' + result.processed + ' procesados · ' + result.skipped + ' sin cambios/omitidos · ' + result.failed + ' errores.',
+      )
+    } catch (error) {
+      setSharePointStatus(error instanceof Error ? error.message : 'Error sincronizando SharePoint.')
+    } finally {
+      setProcessing(null)
+    }
   }
 
   function nodeLabel(nodeId: string) {
@@ -242,32 +291,94 @@ export function DocumentSources() {
         </div>
 
         {showSharePoint && (
-          <div className="mt-4 grid gap-3 rounded-lg border border-border bg-card p-4 lg:grid-cols-[220px_1fr_auto]">
-            <div>
-              <Label className="text-[11px]">Nombre de la fuente</Label>
-              <Input
-                value={sharePointName}
-                onChange={(event) => setSharePointName(event.target.value)}
-                placeholder="Arquitectura Empresarial"
-                className="mt-1 h-9 text-[12px]"
-              />
+          <div className="mt-4 rounded-lg border border-border bg-card p-4">
+            <div className="mb-3">
+              <p className="text-[12px] font-semibold">Conectar carpeta SharePoint a una integración</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                AEGC no copia los archivos como repositorio. SharePoint sigue siendo el origen; AEGC guarda la referencia, el texto interpretado y los vínculos arquitectónicos.
+              </p>
             </div>
-            <div>
-              <Label className="text-[11px]">URL de sitio o carpeta SharePoint</Label>
-              <Input
-                value={sharePointUrl}
-                onChange={(event) => setSharePointUrl(event.target.value)}
-                placeholder="https://...sharepoint.com/sites/.../Shared Documents/..."
-                className="mt-1 h-9 text-[12px]"
-              />
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div>
+                <Label className="text-[11px]">Tenant ID o dominio Entra</Label>
+                <Input
+                  value={tenantId}
+                  onChange={(event) => setTenantId(event.target.value)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx o empresa.onmicrosoft.com"
+                  className="mt-1 h-9 text-[12px]"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px]">Client ID de la App Registration</Label>
+                <Input
+                  value={clientId}
+                  onChange={(event) => setClientId(event.target.value)}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  className="mt-1 h-9 text-[12px]"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px]">Nombre visible</Label>
+                <Input
+                  value={sharePointName}
+                  onChange={(event) => setSharePointName(event.target.value)}
+                  placeholder="Documentación KETAN"
+                  className="mt-1 h-9 text-[12px]"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px]">Relacionar carpeta con</Label>
+                <select
+                  value={sharePointNodeId}
+                  onChange={(event) => setSharePointNodeId(event.target.value)}
+                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-2 text-[12px]"
+                >
+                  <option value="">Seleccioná un nodo / integración…</option>
+                  {atlasNodes.slice().sort((a, b) => a.label.localeCompare(b.label)).map((node) => (
+                    <option key={node.id} value={node.id}>{node.label} · {node.kind}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <Label className="text-[11px]">URL de la carpeta SharePoint</Label>
+                <Input
+                  value={sharePointUrl}
+                  onChange={(event) => setSharePointUrl(event.target.value)}
+                  placeholder="https://tenant.sharepoint.com/sites/.../Shared%20Documents/Integraciones/KETAN"
+                  className="mt-1 h-9 text-[12px]"
+                />
+              </div>
             </div>
-            <div className="flex items-end">
-              <Button size="sm" onClick={registerSharePoint} disabled={!sharePointUrl.trim()}>
-                Registrar fuente
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={sharePointRecursive}
+                  onChange={(event) => setSharePointRecursive(event.target.checked)}
+                />
+                Incluir subcarpetas y mantener la relación heredada con el nodo
+              </label>
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => void connectSharePoint()}
+                disabled={!sharePointUrl.trim() || !tenantId.trim() || !clientId.trim() || !sharePointNodeId || processing === 'sharepoint'}
+              >
+                {processing === 'sharepoint' ? <LoaderCircle size={13} className="animate-spin" /> : <Share2 size={13} />}
+                Conectar y sincronizar
               </Button>
             </div>
-            <p className="lg:col-span-3 text-[11px] text-amber-700 dark:text-amber-300">
-              La URL queda registrada, pero la sincronización directa requiere autenticación Microsoft Graph. Mientras tanto podés seleccionar la carpeta sincronizada de SharePoint con “Subir carpeta”.
+
+            {sharePointStatus && (
+              <p className="mt-3 rounded-md border border-border bg-background px-3 py-2 text-[11px] text-muted-foreground">
+                {sharePointStatus}
+              </p>
+            )}
+
+            <p className="mt-3 text-[10.5px] text-muted-foreground">
+              La App Registration debe permitir el redirect URI de esta web y permisos delegados Microsoft Graph para leer sitios/archivos. No se guarda el access token.
             </p>
           </div>
         )}
@@ -321,10 +432,23 @@ export function DocumentSources() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12px]">{source.name}</span>
                       <span className="block truncate font-mono text-[9px] text-muted-foreground">
-                        {source.connectionStatus === 'pendiente_auth' ? 'Graph pendiente' : count + ' docs'}
+                        {source.type === 'sharepoint'
+                          ? ((source.nodeId ? nodeLabel(source.nodeId) : 'sin nodo') + ' · ' + count + ' docs')
+                          : count + ' docs'}
                       </span>
                     </span>
                   </button>
+                  {source.type === 'sharepoint' && (
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground hover:text-foreground"
+                      onClick={() => void syncSource(source)}
+                      title="Sincronizar carpeta SharePoint"
+                      disabled={processing === source.id}
+                    >
+                      <RefreshCw size={12} className={processing === source.id ? 'animate-spin' : ''} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="mr-1 hidden rounded p-1 text-muted-foreground hover:text-destructive group-hover:block"
