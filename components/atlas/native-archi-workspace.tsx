@@ -83,10 +83,12 @@ function truncated(label: string, width: number): string[] {
   return lines.map((line) => line.length > max ? line.slice(0, max - 1) + '…' : line)
 }
 
-export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onModelLoaded }: {
+export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onModelLoaded, focusLabel = null, onFocusHandled }: {
   initialModel?: NativeModel | null
   initialXml?: string
   onModelLoaded?: (model: NativeModel, xml: string) => void
+  focusLabel?: string | null
+  onFocusHandled?: () => void
 }) {
   const [model, setModel] = useState<NativeModel | null>(initialModel)
   const [originalXml, setOriginalXml] = useState(initialXml)
@@ -114,6 +116,56 @@ export function NativeArchiWorkspace({ initialModel = null, initialXml = '', onM
     setEdits(loadArchiDraft(initialModel.id, initialXml))
     setViewId(initialModel.views.some((v) => v.id === KETAN) ? KETAN : initialModel.views[0]?.id ?? null)
   }, [initialModel, initialXml, model?.id])
+
+
+  useEffect(() => {
+    if (!focusLabel || !model) return
+    const normalize = (value: string) => value
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+
+    const aliases: Record<string, string[]> = {
+      gcc: ['gcc', 'gestion comercial cepas', 'web de pedidos'],
+      'sap s 4hana': ['sap s/4hana', 'sap s4hana', 's4hana', 'sap'],
+      'sap s4hana': ['sap s/4hana', 'sap s4hana', 's4hana', 'sap'],
+      ketan: ['ketan'],
+      'sap cpi': ['sap cpi', 'cpi', 'integration suite', 'cloud integration'],
+    }
+
+    const wanted = normalize(focusLabel)
+    const terms = [wanted, ...(aliases[wanted] ?? []).map(normalize)]
+    let best: { viewId: string; objectId: string; score: number; label: string } | null = null
+
+    for (const candidateView of model.views) {
+      for (const object of candidateView.objects) {
+        const objectLabel = normalize(object.label)
+        if (!objectLabel) continue
+        let score = 0
+        for (const term of terms) {
+          if (!term) continue
+          if (objectLabel === term) score = Math.max(score, 100)
+          else if (objectLabel.includes(term) || term.includes(objectLabel)) score = Math.max(score, 70)
+        }
+        if (score > (best?.score ?? 0)) {
+          best = { viewId: candidateView.id, objectId: object.id, score, label: object.label }
+        }
+      }
+    }
+
+    setQuery(focusLabel)
+    if (best) {
+      const targetView = model.views.find((item) => item.id === best!.viewId)
+      const targetObject = targetView?.objects.find((item) => item.id === best!.objectId) ?? null
+      setAutoFit(true)
+      setViewId(best.viewId)
+      setSelected(targetObject)
+      setSelectedConnectionId(null)
+    }
+    onFocusHandled?.()
+  }, [focusLabel, model, onFocusHandled])
   useEffect(() => { if (model && originalXml) saveArchiDraft(model.id, originalXml, edits) }, [model, originalXml, edits])
 
   const view = model?.views.find((v) => v.id === viewId) ?? null
