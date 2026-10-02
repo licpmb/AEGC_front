@@ -29,6 +29,7 @@ import {
   type ReconcileStatus,
 } from '@/lib/atlas-reconcile'
 import { cn } from '@/lib/utils'
+import { parseNativeArchi, type NativeModel } from '@/lib/native-archi'
 
 const ORDER: ReconcileStatus[] = [
   'ambiguo',
@@ -159,7 +160,7 @@ async function detectImportSource(file: File): Promise<DetectedFile> {
   return { name: file.name, source: 'desconocido', label: 'No identificado' }
 }
 
-export function ImportReconcile() {
+export function ImportReconcile({ onArchiImported }: { onArchiImported?: (model: NativeModel, xml: string) => void }) {
   const atlasNodes = useAtlasNodes()
   const [workspace, setWorkspace] = useState<'descubrir' | 'documentos' | 'cargar'>('descubrir')
   const [source, setSource] = useState<ImportSource | null>(null)
@@ -263,15 +264,26 @@ export function ImportReconcile() {
     }
 
     if (!supported.length) {
-      const recognizedTechnical = detected.find((d) => d.source === 'archimate' || d.source === 'openapi')
-      if (recognizedTechnical) {
+      const archiIndex = detected.findIndex((d) => d.source === 'archimate')
+      if (archiIndex >= 0) {
+        const file = files[archiIndex]
+        try {
+          const xml = await file.text()
+          const model = parseNativeArchi(xml)
+          setScanned(true)
+          onArchiImported?.(model, xml)
+        } catch (cause) {
+          setScanned(true)
+          setError(cause instanceof Error ? cause.message : 'No se pudo interpretar el modelo ArchiMate.')
+        }
+        return
+      }
+
+      const openApi = detected.find((d) => d.source === 'openapi')
+      if (openApi) {
         setSource(null)
         setScanned(true)
-        setError(
-          recognizedTechnical.source === 'archimate'
-            ? 'Modelo ArchiMate detectado. Este importador ya no muestra resultados de ejemplo: la carga real del modelo se realiza desde “Modelo Archi” hasta integrar ese parser en este flujo.'
-            : 'OpenAPI detectado. Este importador ya no muestra resultados de ejemplo: falta conectar el parser real de OpenAPI antes de poder aplicar cambios al Atlas.',
-        )
+        setError('OpenAPI detectado. Falta conectar el parser real de OpenAPI antes de aplicar cambios al Atlas.')
         return
       }
 
