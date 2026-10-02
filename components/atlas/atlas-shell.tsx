@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   FileText,
+  LibraryBig,
   DownloadCloud,
   Network,
   Sun,
@@ -15,6 +16,7 @@ import {
 import { AtlasMap } from './atlas-map'
 import { RolesAdmin } from './roles-admin'
 import { DocCoverage } from './doc-coverage'
+import { DocumentSources } from './document-sources'
 import { ImportReconcile } from './import-reconcile'
 import { Brand } from './brand'
 import { NativeArchiWorkspace } from './native-archi-workspace'
@@ -27,6 +29,7 @@ const VIEWS = [
   { key: 'mapa', label: 'Mapa', icon: MapIcon },
   { key: 'archi', label: 'Modelo Archi', icon: Network },
   { key: 'documentacion', label: 'Documentación', icon: FileText },
+  { key: 'fuentes', label: 'Fuentes', icon: LibraryBig },
   { key: 'importar', label: 'Importar', icon: DownloadCloud },
   { key: 'roles', label: 'Roles y accesos', icon: ShieldCheck },
 ] as const
@@ -192,6 +195,7 @@ export function AtlasShell({ onLogout }: { onLogout: () => void }) {
         </div>}
         {view === 'archi' && <NativeArchiWorkspace initialModel={native?.model} initialXml={native?.xml} onModelLoaded={acceptModel} />}
         {view === 'documentacion' && <DocCoverage />}
+        {view === 'fuentes' && <DocumentSources />}
         {view === 'importar' && <ImportReconcile />}
         {view === 'roles' && <RolesAdmin />}
       </div>
