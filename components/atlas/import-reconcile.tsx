@@ -3,17 +3,12 @@
 import { useMemo, useRef, useState } from 'react'
 import {
   Upload,
-  Boxes,
-  Code2,
-  FileText,
   Check,
   AlertTriangle,
   ArrowRight,
   Sparkles,
   Link2,
   RotateCcw,
-  Settings2,
-  Braces,
   ShieldAlert,
   FileJson,
   Files,
@@ -28,22 +23,12 @@ import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlas
 import { parseAppSettings, parsePostman, type TechnicalReconcileResult } from '@/lib/technical-import'
 import { ingestKnowledgeFiles } from '@/lib/document-knowledge'
 import {
-  IMPORT_SOURCE_META,
   RECONCILE_META,
-  RECONCILE_RESULTS,
   type ImportSource,
   type ReconcileItem,
   type ReconcileStatus,
 } from '@/lib/atlas-reconcile'
 import { cn } from '@/lib/utils'
-
-const SOURCE_ICON: Record<ImportSource, typeof Boxes> = {
-  archimate: Boxes,
-  openapi: Code2,
-  sharepoint: FileText,
-  appsettings: Settings2,
-  postman: Braces,
-}
 
 const ORDER: ReconcileStatus[] = [
   'ambiguo',
@@ -72,7 +57,7 @@ function StatusPill({ status }: { status: ReconcileStatus }) {
 
 type DetectedFile = {
   name: string
-  source: ImportSource | 'desconocido'
+  source: ImportSource | 'documento' | 'desconocido'
   label: string
 }
 
@@ -80,7 +65,7 @@ async function detectImportSource(file: File): Promise<DetectedFile> {
   const name = file.name.toLowerCase()
   if (name.endsWith('.archimate')) return { name: file.name, source: 'archimate', label: 'ArchiMate' }
   if (/\.ya?ml$/.test(name)) return { name: file.name, source: 'openapi', label: 'OpenAPI / YAML' }
-  if (/\.(docx|pdf|xlsx|vsdx)$/i.test(name)) return { name: file.name, source: 'sharepoint', label: 'Documento' }
+  if (/\.(docx?|rtf|pdf|xlsx?|ods|vsdx|txt|md|csv|log|png|jpe?g|webp|gif|bmp)$/i.test(name)) return { name: file.name, source: 'documento', label: 'Documento' }
 
   if (name.endsWith('.json')) {
     try {
@@ -132,7 +117,7 @@ export function ImportReconcile() {
   const [mappings, setMappings] = useState<Record<string, string>>({})
   const [applySummary, setApplySummary] = useState<{ nodes: number; relations: number; enriched: number } | null>(null)
 
-  const result = liveResult ?? (source ? RECONCILE_RESULTS[source] ?? null : null)
+  const result = liveResult
 
   const counts = useMemo(() => {
     const c: Record<ReconcileStatus, number> = {
@@ -202,16 +187,6 @@ export function ImportReconcile() {
     return applyMutations(safeItems)
   }
 
-  function startScan(src: ImportSource) {
-    const staticResult = RECONCILE_RESULTS[src]
-    if (!staticResult) return
-    setSource(src)
-    setLiveResult(null)
-    setError(null)
-    setScanned(false)
-    seedActions(staticResult.items)
-    setTimeout(() => setScanned(true), 250)
-  }
 
   async function loadDroppedFiles(files: File[]) {
     if (!files.length) return
@@ -222,26 +197,22 @@ export function ImportReconcile() {
     setDetectedFiles(detected)
 
     const supported = detected.filter((d) => d.source === 'appsettings' || d.source === 'postman')
-    const documentFiles = files.filter((file, index) => {
-      const detectedFile = detected[index]
-      if (detectedFile.source === 'appsettings' || detectedFile.source === 'postman' || detectedFile.source === 'archimate' || detectedFile.source === 'openapi') return false
-      return /\.(pdf|docx?|rtf|xlsx?|ods|txt|md|csv|png|jpe?g|webp|gif|bmp|log)$/i.test(file.name)
-    })
+    const documentFiles = files.filter((_, index) => detected[index]?.source === 'documento')
 
     if (documentFiles.length) {
       await ingestKnowledgeFiles(documentFiles, atlasNodes, 'upload')
     }
 
     if (!supported.length) {
-      const recognizedStatic = detected.find((d) => d.source === 'archimate' || d.source === 'openapi')
-      if (recognizedStatic) {
-        setSource(recognizedStatic.source)
-        const staticResult = RECONCILE_RESULTS[recognizedStatic.source]
-        if (staticResult) seedActions(staticResult.items)
+      const recognizedTechnical = detected.find((d) => d.source === 'archimate' || d.source === 'openapi')
+      if (recognizedTechnical) {
+        setSource(null)
         setScanned(true)
-        if (documentFiles.length) {
-          setError('La documentación se procesó y quedó disponible en “Documentos y fuentes”. El artefacto técnico detectado queda para reconciliación.')
-        }
+        setError(
+          recognizedTechnical.source === 'archimate'
+            ? 'Modelo ArchiMate detectado. Este importador ya no muestra resultados de ejemplo: la carga real del modelo se realiza desde “Modelo Archi” hasta integrar ese parser en este flujo.'
+            : 'OpenAPI detectado. Este importador ya no muestra resultados de ejemplo: falta conectar el parser real de OpenAPI antes de poder aplicar cambios al Atlas.',
+        )
         return
       }
 
@@ -541,56 +512,32 @@ export function ImportReconcile() {
               </p>
             </button>
 
-            <h3 className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              O elegí el tipo manualmente
-            </h3>
-            <div className="grid gap-4 md:grid-cols-3">
-              {(Object.keys(IMPORT_SOURCE_META) as ImportSource[]).map((src) => {
-                const meta = IMPORT_SOURCE_META[src]
-                const Icon = SOURCE_ICON[src]
-                return (
-                  <label
-                    key={src}
-                    className="group flex cursor-pointer flex-col items-start gap-3 rounded-xl border border-border bg-card p-5 text-left transition-colors hover:border-[color:var(--chart-3)]"
-                    onClick={(e) => {
-                      if (src !== 'appsettings' && src !== 'postman') {
-                        e.preventDefault()
-                        startScan(src)
-                      }
-                    }}
-                  >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary">
-                      <Icon size={20} />
-                    </span>
-                    <div>
-                      <p className="font-semibold">{meta.label}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                        {meta.hint}
-                      </p>
-                    </div>
-                    <span className="mt-auto flex items-center gap-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-                      <Upload size={11} />
-                      {meta.accept}
-                    </span>
-                    {(src === 'appsettings' || src === 'postman') && (
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".json,application/json"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0]
-                          if (file) void loadTechnicalFile(src, file)
-                          e.currentTarget.value = ''
-                        }}
-                      />
-                    )}
-                  </label>
-                )
-              })}
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="text-[12px] font-semibold">Documentación</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  PDF, Word, Excel, imágenes y texto se procesan realmente y se vinculan contra el Atlas.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-4">
+                <p className="text-[12px] font-semibold">Configuración técnica</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  Postman y AppSettings usan parsers reales. No se muestran datasets de demostración.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWorkspace('documentos')}
+                className="rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-[color:var(--chart-3)]"
+              >
+                <p className="text-[12px] font-semibold">SharePoint / fuentes</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  Administrá documentos procesados y registrá la fuente SharePoint.
+                </p>
+              </button>
             </div>
             <p className="mt-6 text-center text-[12px] text-muted-foreground">
-              Arrastrá el archivo o conectá la fuente por API. Todo puede cargarse también{' '}
-              <span className="text-foreground">una a una o masivo</span> desde “Cargar datos”.
+              Subí el archivo sin elegir su tipo. AEGC lo detecta y lo envía al parser correspondiente.
             </p>
           </div>
         </div>
