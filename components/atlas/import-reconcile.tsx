@@ -26,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { ATLAS_NODES } from '@/lib/atlas-data'
 import { saveAtlasNodeOverride, upsertImportedEdge, upsertImportedNode, useAtlasNodes } from '@/lib/atlas-local'
 import { parseAppSettings, parsePostman, type TechnicalReconcileResult } from '@/lib/technical-import'
+import { ingestKnowledgeFiles } from '@/lib/document-knowledge'
 import {
   IMPORT_SOURCE_META,
   RECONCILE_META,
@@ -221,10 +222,38 @@ export function ImportReconcile() {
     setDetectedFiles(detected)
 
     const supported = detected.filter((d) => d.source === 'appsettings' || d.source === 'postman')
+    const documentFiles = files.filter((file, index) => {
+      const detectedFile = detected[index]
+      if (detectedFile.source === 'appsettings' || detectedFile.source === 'postman' || detectedFile.source === 'archimate' || detectedFile.source === 'openapi') return false
+      return /\.(pdf|docx?|rtf|xlsx?|ods|txt|md|csv|png|jpe?g|webp|gif|bmp|log)$/i.test(file.name)
+    })
+
+    if (documentFiles.length) {
+      await ingestKnowledgeFiles(documentFiles, atlasNodes, 'upload')
+    }
+
     if (!supported.length) {
+      const recognizedStatic = detected.find((d) => d.source === 'archimate' || d.source === 'openapi')
+      if (recognizedStatic) {
+        setSource(recognizedStatic.source)
+        const staticResult = RECONCILE_RESULTS[recognizedStatic.source]
+        if (staticResult) seedActions(staticResult.items)
+        setScanned(true)
+        if (documentFiles.length) {
+          setError('La documentación se procesó y quedó disponible en “Documentos y fuentes”. El artefacto técnico detectado queda para reconciliación.')
+        }
+        return
+      }
+
+      if (documentFiles.length) {
+        setWorkspace('documentos')
+        setScanned(true)
+        return
+      }
+
       const labels = detected.map((d) => `${d.name}: ${d.label}`).join(' · ')
       setSource(detected[0]?.source === 'desconocido' ? null : detected[0]?.source ?? null)
-      setError(`Identifiqué los archivos, pero este flujo todavía procesa automáticamente AppSettings y Postman. ${labels}`)
+      setError(`Identifiqué los archivos pero no encontré un parser compatible. ${labels}`)
       setScanned(true)
       return
     }
@@ -476,7 +505,7 @@ export function ImportReconcile() {
             type="file"
             multiple
             className="hidden"
-            accept=".json,.yaml,.yml,.archimate,.xml,.docx,.pdf,.xlsx,.vsdx"
+            accept=".json,.yaml,.yml,.archimate,.xml,.doc,.docx,.rtf,.pdf,.xls,.xlsx,.ods,.txt,.md,.csv,.log,.png,.jpg,.jpeg,.webp,.gif,.bmp,.vsdx"
             onChange={(e) => {
               const files = Array.from(e.target.files ?? [])
               if (files.length) void loadDroppedFiles(files)
